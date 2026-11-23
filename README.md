@@ -14,7 +14,7 @@ Render 무료 인스턴스는 비활성 상태에서 다시 시작할 때 첫 �
 
 ## Project Status
 
-핵심 MVP 구현과 Render 배포까지 마쳤습니다. 현재 10개 쇼핑몰, 5개 category의 실제 상품 520개와 후기 3,798개를 검색할 수 있고, 전체 자동 테스트 118개와 확장 catalog 대상 자연스러움 평가 20개를 통과한 상태입니다.
+핵심 MVP 구현과 Render 배포를 마쳤으며 10개 쇼핑몰, 5개 category의 실제 상품 520개와 후기 3,798개를 검색합니다. 2026-11-23 로컬 작업본은 조건 보존·자동 복구·실행 예산 연결 후 전체 자동 테스트 251개와 production build를 통과했습니다. 이번 연결 변경의 실제 모델 평가·배포는 수행하지 않았으며, 기존 자연스러움 평가 20개 통과는 이전 평가 기록입니다.
 
 - 완료: crawling, review 수집, offline enrichment, SQLite build/search, Agent, 반응형 frontend, Render 배포
 - 완료: factual validation, rate limit, 대화형 오류 recovery, 현재 세션의 이전 대화 다시 보기
@@ -104,13 +104,15 @@ Agent가 사용할 수 있는 tool은 `search_products` 하나입니다. 자연�
 
 가격 표현은 원문을 서버에서 한 번 더 해석합니다. 예를 들어 단독 목표 `8만원`은 7만~9만원, `8만원대`는 80,000~89,999원으로 검색하고, `8만원 이하` 같은 명시 조건은 그대로 유지합니다. 일반적인 흰색 선호에서 정확한 후보가 부족할 때만 아이보리·크림까지 한 번 확장하며, 이 사실을 답변에 명시합니다.
 
-상품이 없으면 조건 완화를 제안하고, 요청이 모호하면 필요한 조건을 질문합니다. Agent 응답의 형식이나 factual validation이 실패하면 일반 오류 화면 대신 문맥에 맞는 추가 질문으로 복구합니다. 후속 질문은 OpenAI Responses API의 previous response state를 사용하지만, 실제 상품 데이터는 매 요청에서 다시 local search와 DB validation을 거칩니다.
+서버는 원문과 현재 UI의 `selectedFilters`로 필수 조건을 확정하고 응답 ID별로 보존합니다. 모든 검색 인자를 이 조건과 비교하고 최종 추천은 최신 DB 상품의 카테고리·가격·색상·사이즈로 다시 검증합니다. 후속 대화는 OpenAI previous response state와 서버 스냅샷을 함께 사용하며, 사용자가 명시한 조건 변경만 새 응답에 반영합니다. 모호한 변경은 모델 호출 없이 확인 질문으로 돌려줍니다.
+
+검증 가능한 검색 인자·출력 오류는 서버가 최대 1회 재생성하고 같은 조건으로 재검증합니다. 전체 요청은 90초, 모델 호출은 정상 최대 3회·복구 포함 최대 4회, 검색은 최대 2회이며 SDK 내부 재시도는 끕니다. HTTP 연결 종료 시 모델 요청을 취소하고 늦은 결과를 폐기합니다. 복구 후에도 잘못된 응답이면 화면에서 문맥에 맞는 추가 질문을 표시합니다. 상품이 없으면 조건 완화를 제안하며 인프라 오류는 자동 재생성하지 않습니다.
 
 ## Trust / Hallucination Prevention
 
 - DB가 이름·가격·이미지·상품 URL·색상·사이즈·치수표·리뷰의 사실 원천입니다.
 - LLM은 조건 해석·후보 ranking·요약만 담당합니다.
-- candidate 밖의 상품 ID나 DB와 맞지 않는 evidence는 서버가 응답 전에 거부합니다.
+- candidate 밖의 상품 ID와 후보 정보에 맞지 않는 구조화 evidence를 거부하며, DB 재조회 후 사용자 필수 조건을 독립적으로 검사합니다.
 - `unknown` review signal은 추천 근거로 사용할 수 없고 정보 부족 또는 concern으로만 표현합니다.
 - strict parser가 검증한 실측 사이즈표만 HTML table로 보여주며, 검증하지 못한 값은 노출하지 않습니다.
 - 사이즈표가 없으면 만들지 않고, `66` 같은 체형 표기를 판매 옵션과 임의 대응하지 않습니다.
@@ -135,13 +137,16 @@ Agent가 사용할 수 있는 tool은 `search_products` 하나입니다. 자연�
 ```bash
 npm test
 npm run build
+node scripts/runRecoveryEval.js
 ```
 
 - parser, PII 제거, raw/enriched schema, deterministic DB build, repository와 search
 - strict Agent contract, factual merge, hallucinated evidence·candidate 거부
 - 가격 의도·controlled color relaxation·실측 사이즈표 parser
 - rate limit, API error recovery, frontend reducer·API·query·대화 이력
-- 2026-09-03 전체 자동 테스트 118/118 통과
+- 조건 스냅샷·최신 DB 검증·1회 자동 복구·공통 시간/호출 예산·HTTP 취소와 늦은 응답 폐기
+- 2026-11-23 전체 자동 테스트 251/251 통과, 실패·skip 0, production build 통과
+- 모의 오류 재생 6건: 복구 OFF 완료 1/6 → ON 완료 4/6, 조건 위반 결과 0건, 외부 API 호출 0회
 - Render 실제 Agent eval 8/8 자동·수동 판정 통과 (catalog 확장 전 2 shops·40 products 배포 기준)
 - 확장된 10 shops·520 products catalog 대상 자연스러움 eval 20/20 통과
 
@@ -167,6 +172,7 @@ case별 상품 ID와 판정은 [`docs/EVAL_REPORT.md`](docs/EVAL_REPORT.md)와 [
 - 화면의 이전 대화 목록은 현재 client memory에만 있어 새로고침이나 `새로 찾기` 후 영구 보관되지 않습니다.
 - 자동 유사 색상 완화는 현재 흰색 → 아이보리·크림 관계에만 적용됩니다.
 - in-memory rate limit은 단일 무료 instance용 MVP 보호이며 재시작 시 초기화됩니다.
+- 필수 조건 해석은 제한된 한국어 문법이며 모호한 변경은 확인 질문으로 처리합니다. 조건 저장소는 프로세스 메모리에 최대 1,000개·30분간 유지하므로 재시작·만료·용량 초과로 이전 상태가 사라지면 새 검색이 필요합니다.
 - LLM 응답은 비결정적이며 live evaluation 재실행에는 비용이 듭니다.
 
 ## What I Would Improve Next

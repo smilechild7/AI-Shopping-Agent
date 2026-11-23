@@ -8,3 +8,4 @@ data/products.db
 data/enriched/*.checkpoint
 data/enriched/*.preview
 npm-debug.log*
+docs/면접대비
