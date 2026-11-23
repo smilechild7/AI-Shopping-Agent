@@ -1,3 +1,8 @@
+/**
+ * 역할: 모의 HTTP 응답으로 Cafe24·Crema 리뷰 수집, 개수 제한과 전체 리뷰 수 보정을 검증한다.
+ * 작성자 식별정보가 수집 결과에 포함되지 않는지 확인한다.
+ */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

@@ -1,3 +1,8 @@
+/**
+ * 역할: 선택한 상품의 추천 이유·근거, 색상·소재·사이즈, 후기 신호와 구매 전 확인사항을 펼쳐 보여준다.
+ * 실측 사이즈표와 원본 상품 링크, 상세 카드 접기 동작을 제공한다.
+ */
+
 import SizeGuideTable from './SizeGuideTable.jsx';
 
 const SIGNAL_LABELS = Object.freeze({

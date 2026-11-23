@@ -1,3 +1,8 @@
+/**
+ * 역할: 저장된 원본·가공 데이터로 실제 SQLite DB를 만들어 검색 조건과 결과를 검증한다.
+ * 필수 필터, 판매 옵션 일치와 Agent에 전달되는 상품 요약의 사실성을 확인한다.
+ */
+
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';

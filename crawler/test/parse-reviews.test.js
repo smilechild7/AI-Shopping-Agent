@@ -1,3 +1,8 @@
+/**
+ * 역할: Cafe24·Snap 정적 리뷰와 Crema JSON이 공통 형식으로 변환되는지 검증한다.
+ * 본문·평점·옵션·날짜 정리, 리뷰 수 제한과 작성자 식별정보 제외를 확인한다.
+ */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

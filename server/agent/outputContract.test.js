@@ -1,3 +1,7 @@
+/**
+ * 역할: 추천 수에 따른 비교 항목, 응답 유형별 필수 값과 근거 유형별 허용 값이 출력 계약을 따르는지 검증한다.
+ */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

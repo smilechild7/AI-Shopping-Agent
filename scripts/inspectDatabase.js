@@ -1,3 +1,8 @@
+/**
+ * 역할: 로컬 SQLite DB를 읽기 전용으로 열어 테이블별 개수와 무결성 검사 결과를 출력한다.
+ * 선택한 상품의 저장된 리뷰 수와 실제 연결된 리뷰 표본을 함께 확인한다.
+ */
+
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 

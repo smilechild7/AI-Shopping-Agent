@@ -1,3 +1,7 @@
+/**
+ * 역할: 검색 결과가 없다는 안내와 다음 검색을 위한 조건 변경 제안을 대화 말풍선으로 표시한다.
+ */
+
 export default function NoResultMessage({ message, suggestion }) {
   return (
     <section className="flex items-start gap-3" aria-label="AI 답변">

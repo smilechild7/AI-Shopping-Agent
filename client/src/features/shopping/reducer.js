@@ -1,3 +1,8 @@
+/**
+ * 역할: 메시지 전송·응답 수신·복구·실패·초기화 이벤트에 따라 쇼핑 대화 상태를 갱신한다.
+ * 메시지 이력, 로딩 상태, 오류와 후속 요청용 responseId를 함께 관리한다.
+ */
+
 export const INITIAL_SHOPPING_STATE = Object.freeze({
   messages: [],
   status: 'idle',

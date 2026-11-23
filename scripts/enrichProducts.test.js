@@ -1,3 +1,8 @@
+/**
+ * 역할: 가공 CLI 인자, API 호출 없는 실행 계획 확인, 완료 후 저장과 실패 시 기존 결과 보존을 검증한다.
+ * 기존·시드 가공 결과를 재사용하고 누락된 상품만 호출하는지도 확인한다.
+ */
+
 import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';

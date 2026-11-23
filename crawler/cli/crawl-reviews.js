@@ -1,3 +1,8 @@
+/**
+ * 역할: 기존 data/raw 상품 파일을 읽고 지정한 수량만큼 실제 구매후기를 추가 수집하는 CLI다.
+ * 갱신된 리뷰·리뷰 수를 원본 상품 파일에 저장하고 실패 개수를 출력한다.
+ */
+
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 

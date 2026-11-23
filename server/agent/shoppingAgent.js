@@ -1,3 +1,8 @@
+/**
+ * 역할: OpenAI Responses API와 search_products 도구 호출을 반복하며 쇼핑 대화를 실행한다.
+ * 검색 인자와 최종 출력 검증, 가격 의도 보정, DB 사실 정보 병합과 호출 사용량 기록을 연결한다.
+ */
+
 import { AI_CONFIG } from '../config/ai.js';
 import { applyPriceIntent } from '../products/priceIntent.js';
 import { normalizeSearchInput } from '../products/searchInput.js';
@@ -16,6 +21,9 @@ const SEARCH_PRODUCTS_TOOL = Object.freeze({
 });
 
 export class AgentRuntimeError extends Error {
+  /**
+   * Agent 실행 실패의 코드와 원인 오류를 보관해 API 라우터가 일반 인프라 오류와 구분할 수 있게 한다.
+   */
   constructor(code, message, options) {
     super(message, options);
     this.name = 'AgentRuntimeError';
@@ -23,10 +31,16 @@ export class AgentRuntimeError extends Error {
   }
 }
 
+/**
+ * 모델 출력 중 도구 실행을 요청하는 function_call 항목만 모아 반환한다.
+ */
 function toolCalls(response) {
-  return (response.output ?? []).filter((item) => item.type === 'function_call');
+  return (response.output ?? []).filter(/* 일반 출력·추론 항목을 제외하고 함수 호출 항목인지 확인한다. */ (item) => item.type === 'function_call');
 }
 
+/**
+ * 모델 응답에서 최종 텍스트를 추출하고 불완전·거부·출력 누락을 서로 다른 Agent 오류로 변환한다.
+ */
 function responseText(response) {
   if (response.status === 'incomplete') {
     throw new AgentRuntimeError(
@@ -59,6 +73,9 @@ function responseText(response) {
   );
 }
 
+/**
+ * 최종 텍스트를 JSON으로 파싱한 뒤 응답 계약을 검증하며, JSON 오류와 계약 위반을 구분해 던진다.
+ */
 function parseFinalOutput(response) {
   let value;
   try {
@@ -85,6 +102,10 @@ function parseFinalOutput(response) {
   }
 }
 
+/**
+ * 허용된 search_products 호출인지 확인하고 JSON 인자를 정규화한 뒤 원문의 목표 가격을 보정한다.
+ * 현재 이 함수에는 사용자 필수 조건 스냅샷과 모델 인자를 비교하는 검사가 연결되어 있지 않다.
+ */
 function parseToolInput(toolCall, userMessage) {
   if (toolCall.name !== 'search_products') {
     throw new AgentRuntimeError(
@@ -115,8 +136,14 @@ function parseToolInput(toolCall, userMessage) {
   }
 }
 
+/**
+ * 한 채팅 요청에서 받은 모델 응답들의 입력·출력·전체 토큰 사용량을 합산한다.
+ */
 function usageTotals(responses) {
   return responses.reduce(
+    /**
+     * 응답의 사용량을 누적하며 사용량 필드가 없으면 0으로 계산한다.
+     */
     (total, response) => ({
       inputTokens: total.inputTokens + (response.usage?.input_tokens ?? 0),
       outputTokens: total.outputTokens + (response.usage?.output_tokens ?? 0),
@@ -126,6 +153,9 @@ function usageTotals(responses) {
   );
 }
 
+/**
+ * 모델 설정·이전 응답 ID·지침·검색 도구·최종 출력 스키마를 Responses API 요청 옵션으로 조립한다.
+ */
 function requestOptions({ config, input, previousResponseId }) {
   return {
     model: config.model,
@@ -149,6 +179,10 @@ function requestOptions({ config, input, previousResponseId }) {
   };
 }
 
+/**
+ * OpenAI 클라이언트·검색 실행 함수·상품 저장소를 주입받아 chat 메서드를 제공한다.
+ * 필수 의존성을 먼저 확인하고 실제 모델 호출은 chat 실행 시점까지 미룬다.
+ */
 export function createShoppingAgent({
   client,
   search,
@@ -164,6 +198,10 @@ export function createShoppingAgent({
   }
 
   return {
+    /**
+     * 사용자 메시지로 모델을 호출하고 도구 요청이면 검색 결과를 다음 모델 입력으로 돌려준다.
+     * 최종 출력이면 계약과 추천 근거를 검증해 DB 정보를 병합하며, 호출 반복 한도와 토큰 집계를 관리한다.
+     */
     async chat({ message, previousResponseId = null }) {
       const responses = [];
       let priorId = previousResponseId;

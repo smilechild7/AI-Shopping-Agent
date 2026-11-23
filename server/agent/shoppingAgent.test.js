@@ -1,3 +1,8 @@
+/**
+ * 역할: 모의 OpenAI 응답으로 도구 실행, 가격 보정, 후속 대화와 추천·추가 질문·결과 없음 분기를 검증한다.
+ * 흰색 선호 완화, 후보 밖 상품 거부와 도구 호출 반복 한도도 확인한다.
+ */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

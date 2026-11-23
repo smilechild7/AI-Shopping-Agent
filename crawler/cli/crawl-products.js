@@ -1,3 +1,8 @@
+/**
+ * 역할: 지정한 쇼핑몰과 카테고리의 상품 상세 정보를 수집하는 CLI다.
+ * crawlShop의 결과를 data/raw의 쇼핑몰·카테고리별 JSON 파일에 저장한다.
+ */
+
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 

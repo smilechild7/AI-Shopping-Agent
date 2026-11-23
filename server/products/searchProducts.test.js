@@ -1,3 +1,7 @@
+/**
+ * 역할: 색상 정보가 없는 후보의 유지, 알려진 불일치 제외와 후보 수에 따른 정렬·상한 적용을 검증한다.
+ */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

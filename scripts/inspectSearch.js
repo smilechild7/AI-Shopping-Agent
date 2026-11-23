@@ -1,3 +1,8 @@
+/**
+ * 역할: 미리 정의한 조건으로 로컬 SQLite 검색을 실행해 필터 일치 개수와 후보 정보를 출력하는 점검 CLI다.
+ * 간결한 후보 요약 또는 전체 결과를 선택해 검색 규칙과 후기 신호를 확인할 수 있다.
+ */
+
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 

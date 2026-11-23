@@ -1,3 +1,7 @@
+/**
+ * 역할: 검색 입력의 기본값과 중복 제거, 잘못된 가격·배열·후기 신호 및 허용되지 않은 카테고리 거부를 검증한다.
+ */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

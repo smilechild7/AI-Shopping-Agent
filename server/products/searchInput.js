@@ -1,3 +1,8 @@
+/**
+ * 역할: 검색 입력의 필수 조건과 선호 조건을 검증하고 누락된 기본값·공백·중복 값을 정리한다.
+ * 가격 범위, 카테고리, 태그와 후기 신호가 허용된 형식인지 확인한다.
+ */
+
 import { CONTROLLED_VOCABULARY } from '../config/vocabulary.js';
 
 const REVIEW_SIGNALS = Object.freeze({

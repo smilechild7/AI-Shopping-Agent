@@ -1,3 +1,7 @@
+/**
+ * 역할: 검색 요청과 응답에 따른 상태 전이, 대화·responseId 보존, 오류 처리와 초기화를 검증한다.
+ */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

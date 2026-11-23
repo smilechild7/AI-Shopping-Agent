@@ -1,3 +1,8 @@
+/**
+ * 역할: 상품 카테고리와 스타일·용도·핏·계절 태그의 허용 값을 한곳에서 정의한다.
+ * 상품 가공, 검색 입력과 Agent 응답이 같은 분류 어휘를 사용하도록 공유한다.
+ */
+
 export const CONTROLLED_VOCABULARY = Object.freeze({
   productCategories: Object.freeze([
     'pants',

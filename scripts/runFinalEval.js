@@ -1,3 +1,8 @@
+/**
+ * 역할: 지정한 서버의 /api/chat에 최종 평가 요청을 보내고 후속 대화 ID를 연결하는 실서비스 평가 CLI다.
+ * 응답별 자동 판정과 소요 시간을 모으며 명시적 실행 확인 후 결과를 임시 경로에 저장한다.
+ */
+
 import { readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';

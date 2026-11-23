@@ -1,3 +1,8 @@
+/**
+ * 역할: 번호순 SQL 마이그레이션 중 아직 적용하지 않은 파일을 트랜잭션으로 실행한다.
+ * 성공한 파일의 버전과 적용 시각을 기록해 중복 적용을 방지한다.
+ */
+
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 

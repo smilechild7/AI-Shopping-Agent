@@ -1,3 +1,7 @@
+/**
+ * 역할: 자연어와 선택 조건의 결합, 지원 카테고리, 빈 입력 처리와 포커스에 따른 필터 표시를 검증한다.
+ */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

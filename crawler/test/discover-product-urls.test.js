@@ -1,3 +1,8 @@
+/**
+ * 역할: 상품 링크의 중복 제거, 쇼핑몰·카테고리별 필터와 주변 카드 문구를 이용한 탐색을 검증한다.
+ * 이미 배정된 상품을 건너뛰고 뒤의 후보로 개수를 채우는지도 확인한다.
+ */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

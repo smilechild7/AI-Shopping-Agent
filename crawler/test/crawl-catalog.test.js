@@ -1,3 +1,8 @@
+/**
+ * 역할: 기존 상품 보존, 카테고리 순서에 따른 중복 제외와 부족한 후보 보충을 검증한다.
+ * 리뷰 수집에 실패한 카테고리의 파일이 저장되지 않는지도 확인한다.
+ */
+
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';

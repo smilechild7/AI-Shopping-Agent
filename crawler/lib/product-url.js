@@ -1,3 +1,8 @@
+/**
+ * 역할: 상품 링크를 절대 URL로 바꾸고 불필요한 추적 파라미터와 해시를 제거한다.
+ * Cafe24의 쿼리형·경로형 URL에서 원본 상품 ID를 추출한다.
+ */
+
 export function normalizeProductUrl(href, baseUrl) {
   const url = new URL(href, baseUrl);
 

@@ -1,3 +1,7 @@
+/**
+ * 역할: 상품·가공 결과의 중복 없는 저장과 조회, 리뷰 스냅샷 교체, 외래 키와 연쇄 삭제를 검증한다.
+ */
+
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';

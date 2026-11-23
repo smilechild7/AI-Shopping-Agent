@@ -1,3 +1,7 @@
+/**
+ * 역할: 저장된 원본·가공 데이터로 DB를 반복 생성해 상품·리뷰 관계와 동일 입력의 재현성을 검증한다.
+ */
+
 import assert from 'node:assert/strict';
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';

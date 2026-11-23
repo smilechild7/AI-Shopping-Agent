@@ -1,3 +1,6 @@
+-- 역할: 쇼핑몰·상품·리뷰·AI 가공 결과를 저장하는 SQLite 초기 테이블을 생성한다.
+-- 데이터 관계를 보장하는 외래 키·고유 제약과 상품 검색·리뷰 조회용 인덱스를 정의한다.
+
 CREATE TABLE shops (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,

@@ -1,3 +1,8 @@
+/**
+ * 역할: Agent가 해석한 조건과 추천 상품의 요약 목록, 상품별 비교 코멘트를 표시한다.
+ * 한 번에 한 상품의 상세 카드를 펼치고 이미지·상품명에서 원본 판매 페이지로 연결한다.
+ */
+
 import { useId, useState } from 'react';
 
 import ProductCard from '../../components/ProductCard.jsx';

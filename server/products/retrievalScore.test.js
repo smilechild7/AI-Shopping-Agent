@@ -1,3 +1,7 @@
+/**
+ * 역할: 선호 조건별 가중치와 회피 키워드 감점이 적용되고, 누락된 가공·후기 정보 때문에 임의 감점하지 않는지 검증한다.
+ */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

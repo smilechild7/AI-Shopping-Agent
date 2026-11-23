@@ -1,3 +1,8 @@
+/**
+ * 역할: 채팅 API에 IP별 제한과 서비스 전체 제한을 적용하는 미들웨어를 만든다.
+ * 한도를 넘으면 제한 범위와 재시도까지 남은 시간을 포함한 429 응답을 반환한다.
+ */
+
 import { rateLimit } from 'express-rate-limit';
 
 function retryAfterSeconds(request) {

@@ -1,3 +1,8 @@
+/**
+ * 역할: 여러 쇼핑몰의 카테고리를 정해진 순서로 수집하며 상품의 중복 배정을 방지한다.
+ * 기존 데이터 보존·중단 후 재개를 처리하고 상품과 리뷰 검증이 끝난 묶음만 파일에 저장한다.
+ */
+
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 

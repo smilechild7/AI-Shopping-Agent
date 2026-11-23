@@ -1,3 +1,7 @@
+/**
+ * 역할: 자연어 평가 사례, 흰색 선호 완화와 필수 색상 유지, 비용 집계·예산 중단·선택 사례 실행을 검증한다.
+ */
+
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';

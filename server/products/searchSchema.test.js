@@ -1,3 +1,7 @@
+/**
+ * 역할: 검색 도구 스키마가 추가 필드를 제한하고 공통 카테고리·태그 어휘와 필수 필드 구조를 사용하는지 검증한다.
+ */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

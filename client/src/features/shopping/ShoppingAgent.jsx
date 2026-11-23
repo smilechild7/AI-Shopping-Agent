@@ -1,3 +1,8 @@
+/**
+ * 역할: 검색 제출부터 API 호출, 응답 분기, 오류 복구와 대화 초기화까지 쇼핑 화면의 전체 흐름을 연결한다.
+ * 현재 세션의 대화 목록과 이전 응답 펼치기를 관리하고 후속 요청용 responseId를 보관한다.
+ */
+
 import { useEffect, useReducer, useRef, useState } from 'react';
 
 import LoadingState from '../../components/LoadingState.jsx';
@@ -18,6 +23,9 @@ import SearchInput from './SearchInput.jsx';
 
 const RESPONSE_STORAGE_KEY = 'shopping-agent-previous-response-id';
 
+/**
+ * sessionStorage에서 이전 응답 ID를 읽고, 저장소에 접근할 수 없으면 새 대화를 뜻하는 null을 반환한다.
+ */
 function storedResponseId() {
   try {
     return window.sessionStorage.getItem(RESPONSE_STORAGE_KEY);
@@ -26,6 +34,9 @@ function storedResponseId() {
   }
 }
 
+/**
+ * 후속 대화용 응답 ID를 저장하거나 지우며, 브라우저 저장소 오류가 화면 사용을 중단시키지 않도록 처리한다.
+ */
 function storeResponseId(responseId) {
   try {
     if (responseId) window.sessionStorage.setItem(RESPONSE_STORAGE_KEY, responseId);
@@ -35,6 +46,9 @@ function storeResponseId(responseId) {
   }
 }
 
+/**
+ * 서버 응답 유형을 reducer 이벤트로 바꾸고 지원하지 않는 유형은 null로 반환한다.
+ */
 function responseAction(type) {
   if (type === 'clarification') return 'RECEIVE_CLARIFICATION';
   if (type === 'recommendation') return 'RECEIVE_RECOMMENDATION';
@@ -42,6 +56,9 @@ function responseAction(type) {
   return null;
 }
 
+/**
+ * 메시지 종류에 따라 추천 결과·추가 질문·결과 없음 컴포넌트를 선택해 렌더링한다.
+ */
 function AssistantResult({ message }) {
   if (!message) return null;
   if (message.kind === 'recommendation') return <RecommendationResult result={message.data} />;
@@ -49,6 +66,9 @@ function AssistantResult({ message }) {
   return <NoResultMessage message={message.data.message} suggestion={message.data.suggestion} />;
 }
 
+/**
+ * 이전 대화 접기 버튼에 사용할 짧은 이름을 만들고, 추천이면 첫 상품명과 개수를 포함한다.
+ */
 function previousResponseLabel(message) {
   if (message.kind === 'recommendation') {
     const products = message.data.products ?? [];
@@ -62,6 +82,9 @@ function previousResponseLabel(message) {
   return '이전 AI 답변';
 }
 
+/**
+ * 사용자의 입력 문장이 있을 때 우측 대화 말풍선을 표시하고, 없으면 렌더링하지 않는다.
+ */
 function UserMessage({ content }) {
   if (!content) return null;
 
@@ -77,6 +100,9 @@ function UserMessage({ content }) {
   );
 }
 
+/**
+ * 이전 사용자 질문과 AI 응답을 펼치거나 접는 영역을 만들며 접기 애니메이션과 접근성 연결 ID를 관리한다.
+ */
 function PreviousResponseSummary({
   animate = false,
   expanded,
@@ -123,16 +149,23 @@ function PreviousResponseSummary({
   );
 }
 
+/**
+ * 쇼핑 대화의 상태·요청 취소·이전 응답 펼치기와 각 응답 화면을 관리하는 최상위 기능 컴포넌트다.
+ * 검색창에서 받은 입력을 API에 보내고 후속 대화 ID를 이어 주며, 응답·복구·실패에 따라 reducer를 갱신한다.
+ */
 export default function ShoppingAgent() {
   const [state, dispatch] = useReducer(
     shoppingReducer,
     null,
+    /**
+     * 컴포넌트 초기화 시 저장된 응답 ID를 읽어 초기 대화 상태를 한 번 만든다.
+     */
     () => createInitialShoppingState(storedResponseId()),
   );
   const [expandedPreviousKey, setExpandedPreviousKey] = useState(null);
   const activeRequest = useRef(null);
-  const lastUserMessage = [...state.messages].reverse().find((message) => message.role === 'user');
-  const assistantMessages = state.messages.filter((message) => message.role === 'assistant');
+  const lastUserMessage = [...state.messages].reverse().find(/* 대화 목록을 뒤에서부터 확인해 가장 최근 사용자 메시지를 고른다. */ (message) => message.role === 'user');
+  const assistantMessages = state.messages.filter(/* 전체 메시지에서 AI 응답만 남겨 최신 결과와 이전 이력을 계산한다. */ (message) => message.role === 'assistant');
   const lastAssistantMessage = assistantMessages.at(-1);
   const isRefinementLoading = state.status === 'loading' && Boolean(lastAssistantMessage);
   const isRefinementError = state.status === 'error' && Boolean(lastAssistantMessage);
@@ -141,8 +174,12 @@ export default function ShoppingAgent() {
   });
   const hasConversation = state.messages.length > 0;
 
-  useEffect(() => () => activeRequest.current?.abort(), []);
+  useEffect(/* 컴포넌트가 사라질 때 실행할 요청 취소 함수를 effect의 정리 함수로 등록한다. */ () => /* 화면을 벗어나면 아직 진행 중인 채팅 요청을 취소한다. */ () => activeRequest.current?.abort(), []);
 
+  /**
+   * 화면용 사용자 문장을 이력에 추가하고 서버용 문장과 이전 응답 ID를 API로 보낸다.
+   * 성공 응답이나 복구용 재질문을 반영하면 true, 요청 실패면 false를 반환하고 현재 요청 참조를 정리한다.
+   */
   async function submit({ requestMessage, displayMessage }) {
     const controller = new AbortController();
     activeRequest.current = controller;
@@ -178,6 +215,9 @@ export default function ShoppingAgent() {
     }
   }
 
+  /**
+   * 진행 중 요청을 취소하고 펼친 이력·저장된 응답 ID·대화 상태를 초기화한 뒤 화면 상단으로 이동한다.
+   */
   function reset() {
     activeRequest.current?.abort();
     activeRequest.current = null;
@@ -224,7 +264,7 @@ export default function ShoppingAgent() {
         <div className="relative mx-auto w-full max-w-7xl px-5 pb-24 pt-8 sm:px-8">
           {previousAssistantEntries.length > 0 && (
             <div className="mb-6 space-y-3" aria-label="이전 대화 목록">
-              {previousAssistantEntries.map(({ key, message, userMessage }) => {
+              {previousAssistantEntries.map(/* 이전 대화 항목마다 접기 애니메이션 여부와 펼침 상태를 계산해 요약 컴포넌트를 만든다. */ ({ key, message, userMessage }) => {
                 const animate = isRefinementLoading && message === lastAssistantMessage;
                 const expanded = expandedPreviousKey === key;
 
@@ -235,7 +275,7 @@ export default function ShoppingAgent() {
                     historyKey={key}
                     key={key}
                     message={message}
-                    onToggle={() => setExpandedPreviousKey((current) => current === key ? null : key)}
+                    onToggle={/* 선택한 이전 대화의 펼침 상태를 전환하는 상태 갱신을 요청한다. */ () => setExpandedPreviousKey(/* 같은 항목을 다시 누르면 닫고, 다른 항목을 누르면 해당 항목만 펼친다. */ (current) => current === key ? null : key)}
                     userMessage={userMessage}
                   />
                 );

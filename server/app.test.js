@@ -1,3 +1,7 @@
+/**
+ * 역할: 로컬 HTTP 요청으로 채팅 입력 검증, Agent 오류 변환, IP별·서비스 전체 요청 제한과 본문 크기 제한을 검증한다.
+ */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

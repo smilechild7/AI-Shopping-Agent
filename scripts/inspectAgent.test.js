@@ -1,3 +1,7 @@
+/**
+ * 역할: Agent 점검 CLI의 사례·메시지·대화 ID 인자와 주입한 모의 런타임의 실행·종료 처리를 검증한다.
+ */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

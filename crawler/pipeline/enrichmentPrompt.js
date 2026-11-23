@@ -1,3 +1,8 @@
+/**
+ * 역할: 오프라인 상품 가공 모델에 전달할 지침과 상품·리뷰 근거 입력을 구성한다.
+ * 사용할 태그 어휘와 후기 집계 원칙을 명시하고 체형 프로필의 허용 필드만 입력에 포함한다.
+ */
+
 import { CONTROLLED_VOCABULARY } from './enrichmentContract.js';
 
 export const ENRICHMENT_INSTRUCTIONS = `당신은 여성 의류 상품과 실제 구매 리뷰를 근거 기반으로 정리하는 분석가다.

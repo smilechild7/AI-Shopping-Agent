@@ -1,3 +1,8 @@
+/**
+ * 역할: 카테고리 HTML의 링크·이미지 설명·상품 카드 문구에서 조건에 맞는 상품 URL을 찾는다.
+ * 쇼핑몰별 탐색 규칙과 제외 ID를 반영하고 중복 상품을 제거해 지정한 개수까지 반환한다.
+ */
+
 import * as cheerio from 'cheerio';
 
 import { extractSourceProductId, normalizeProductUrl } from './product-url.js';

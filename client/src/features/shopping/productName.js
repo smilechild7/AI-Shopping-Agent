@@ -1,3 +1,8 @@
+/**
+ * 역할: 상품명에서 홍보 태그와 긴 검색 키워드 문구를 걷어내 화면용 이름을 만든다.
+ * 긴 이름은 글자 수에 맞춰 줄이고 정리 결과가 비면 원래 이름을 사용한다.
+ */
+
 const SQUARE_TAG_PATTERN = /\[[^\]]*\]|【[^】]*】/gu;
 const PARENTHETICAL_PATTERN = /\([^)]*\)|（[^）]*）/gu;
 const TRAILING_SEPARATOR_PATTERN = /[\s,;/|·-]+$/u;

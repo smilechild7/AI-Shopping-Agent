@@ -1,3 +1,8 @@
+/**
+ * 역할: 채팅 API 본문의 허용 필드, 메시지 길이와 previousResponseId 형식을 검증한다.
+ * 검증을 통과한 메시지의 양끝 공백을 제거하고 대화 ID의 기본값을 정리한다.
+ */
+
 const RESPONSE_ID_PATTERN = /^resp_[A-Za-z0-9_-]{1,200}$/u;
 
 export function validateChatRequest(value, { maxMessageLength }) {

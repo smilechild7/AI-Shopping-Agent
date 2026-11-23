@@ -1,3 +1,8 @@
+/**
+ * 역할: 실행 확인·비용 예산·출력 경로를 검증하고 실제 Agent로 자연어 평가를 수행하는 CLI다.
+ * Agent 사용량 로그를 수집해 예상 비용을 계산하고 평가 결과를 임시 파일에 저장한다.
+ */
+
 import { readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';

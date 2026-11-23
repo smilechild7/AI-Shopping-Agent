@@ -1,3 +1,7 @@
+/**
+ * 역할: 최종 평가 계획의 요청 수와 후속 연결, 사실과 다른 추천 근거 거부 및 응답 유형별 판정 규칙을 검증한다.
+ */
+
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';

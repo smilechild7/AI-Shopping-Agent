@@ -1,3 +1,8 @@
+/**
+ * 역할: Express 앱에 JSON 본문 파싱, 상태 확인·채팅 API, 요청 제한과 입력 오류 처리를 등록한다.
+ * 프런트엔드 빌드가 있으면 정적 파일과 React 진입 HTML도 제공한다.
+ */
+
 import express from 'express';
 import { existsSync } from 'node:fs';
 import path from 'node:path';

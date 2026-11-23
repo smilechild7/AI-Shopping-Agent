@@ -1,3 +1,7 @@
+/**
+ * 역할: 자연어 평가 CLI의 명시적 실행 확인, 예산·임시 경로 제한과 최신 Agent 사용량 수집을 검증한다.
+ */
+
 import assert from 'node:assert/strict';
 import { tmpdir } from 'node:os';
 import path from 'node:path';

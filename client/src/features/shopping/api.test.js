@@ -1,3 +1,7 @@
+/**
+ * 역할: 채팅 요청의 전송 형식, 요청 제한 대기 시간과 한국어 오류 안내, 대화형 복구 대상 오류를 검증한다.
+ */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

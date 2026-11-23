@@ -1,3 +1,8 @@
+/**
+ * 역할: Cafe24 HTML에서 실제 상품 필드·복합 옵션·판매 사이즈와 유효한 실측표를 추출하는지 검증한다.
+ * 잘못된 사이즈표, 추가 상품 옵션과 쇼핑몰 대표 메타 정보를 제외하는지도 확인한다.
+ */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

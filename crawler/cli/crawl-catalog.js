@@ -1,3 +1,8 @@
+/**
+ * 역할: 쇼핑몰·수집 개수·요청 간격·재개 옵션을 읽어 전체 카테고리의 상품과 리뷰 수집을 시작하는 CLI다.
+ * catalog 수집 모듈에 작업을 맡기고 수집·보존·재개 결과를 집계해 출력한다.
+ */
+
 import path from 'node:path';
 
 import { getShopConfig, SHOPS } from '../config/shops.js';

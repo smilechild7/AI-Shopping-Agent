@@ -1,3 +1,8 @@
+/**
+ * 역할: 최종 평가의 독립 요청과 후속 질문을 실행 순서로 구성하고 공개 Agent 응답을 판정한다.
+ * 응답 유형, 추천 상품·조건·근거·비교 항목이 평가 계약을 만족하는지 검사한다.
+ */
+
 import { colorsMatch, sizesMatch } from '../server/products/searchNormalization.js';
 
 export const FINAL_EVAL_REQUEST_COUNT = 8;

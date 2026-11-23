@@ -1,3 +1,8 @@
+/**
+ * 역할: 원문 검토로 확정한 특정 상품의 사진·실물 후기 신호 보정값과 근거 위치를 관리한다.
+ * 추가 모델 호출 없이 해당 상품의 가공 결과에 필요한 보정만 적용한다.
+ */
+
 export const ENRICHMENT_OVERRIDES = Object.freeze({
   'graychic:12325': Object.freeze({
     appearanceMatch: Object.freeze({

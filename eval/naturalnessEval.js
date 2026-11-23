@@ -1,3 +1,8 @@
+/**
+ * 역할: 자연어 평가 사례를 검증하고 조건 준수·색상 완화·대안 색상 안내 여부를 판정한다.
+ * 토큰 기반 예상 비용과 다음 요청의 예비 비용을 계산하며 예산 안에서 평가를 순차 실행한다.
+ */
+
 import { auditEvalResponse } from './finalEval.js';
 import { colorsMatch, normalizeText } from '../server/products/searchNormalization.js';
 

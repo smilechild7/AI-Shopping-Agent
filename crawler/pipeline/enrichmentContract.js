@@ -1,3 +1,8 @@
+/**
+ * 역할: 상품 가공 결과와 모델의 리뷰 근거 집계에 사용할 스키마·검증 규칙을 정의한다.
+ * 허용 태그·리뷰 수·체형 근거를 확인하고 근거 집계로 unknown·mixed 등을 포함한 최종 신호를 결정한다.
+ */
+
 import { CONTROLLED_VOCABULARY } from '../../server/config/vocabulary.js';
 
 export { CONTROLLED_VOCABULARY };
@@ -14,11 +19,17 @@ export const REVIEW_SIGNALS = Object.freeze({
   materialQuality: Object.freeze(['positive', 'negative', 'mixed', 'unknown']),
 });
 
+/**
+ * 문자열 배열용 스키마를 만들고 허용 값 목록이 있으면 각 원소를 해당 enum으로 제한한다.
+ */
 const stringArraySchema = (values) => ({
   type: 'array',
   items: values ? { type: 'string', enum: values } : { type: 'string' },
 });
 
+/**
+ * 후기 신호와 한국어 요약으로 구성되는 객체 스키마를 만들고 신호의 허용 값을 고정한다.
+ */
 const signalSchema = (values) => ({
   type: 'object',
   properties: {
@@ -132,12 +143,18 @@ export const MODEL_ENRICHMENT_OUTPUT_SCHEMA = Object.freeze({
   required: [...ENRICHMENT_OUTPUT_SCHEMA.required, 'evidenceTally'],
 });
 
+/**
+ * null·배열·기본형을 거부하고 객체가 아닌 값의 필드 경로를 오류에 포함한다.
+ */
 function assertPlainObject(value, path) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error(`${path} must be an object`);
   }
 }
 
+/**
+ * 객체의 키가 기대 목록과 정확히 일치하는지 확인해 누락되거나 추가된 필드를 거부한다.
+ */
 function assertExactKeys(value, expectedKeys, path) {
   const actualKeys = Object.keys(value).sort();
   const sortedExpectedKeys = [...expectedKeys].sort();
@@ -146,12 +163,18 @@ function assertExactKeys(value, expectedKeys, path) {
   }
 }
 
+/**
+ * 값이 문자열인지 확인하고 아니면 해당 필드 경로와 함께 오류를 던진다.
+ */
 function assertString(value, path) {
   if (typeof value !== 'string') {
     throw new Error(`${path} must be a string`);
   }
 }
 
+/**
+ * 문자열 배열인지 검사하고, 허용 값 목록이 주어지면 목록 밖의 항목도 거부한다.
+ */
 function assertStringArray(value, path, allowedValues) {
   if (!Array.isArray(value)) {
     throw new Error(`${path} must be an array`);
@@ -164,17 +187,24 @@ function assertStringArray(value, path, allowedValues) {
   }
 }
 
+/**
+ * 리뷰 중 실제 값이 채워진 구조화 체형 프로필이 하나라도 있는지 확인한다.
+ */
 function hasStructuredReviewerProfile(product) {
-  return (product.reviews ?? []).some((review) => {
+  return (product.reviews ?? []).some(/* 리뷰의 체형 프로필이 객체이며 비어 있지 않은 속성을 포함하는지 검사한다. */ (review) => {
     const profile = review.reviewerProfile;
     return (
       profile &&
       typeof profile === 'object' &&
-      Object.values(profile).some((value) => value !== null && value !== '')
+      Object.values(profile).some(/* 프로필 속성이 null이나 빈 문자열이 아닌지 확인한다. */ (value) => value !== null && value !== '')
     );
   });
 }
 
+/**
+ * 저장할 가공 결과의 필드·태그·후기 신호와 분석 리뷰 수를 원본 상품에 대조한다.
+ * 리뷰·체형 근거가 없는데 관련 설명을 생성한 경우 거부하고, 통과한 결과 객체를 반환한다.
+ */
 export function validateEnrichmentOutput(value, product) {
   assertPlainObject(value, 'enrichment');
   assertExactKeys(value, ENRICHMENT_OUTPUT_SCHEMA.required, 'enrichment');
@@ -245,6 +275,9 @@ export function validateEnrichmentOutput(value, product) {
   return value;
 }
 
+/**
+ * 리뷰 근거 집계의 필드가 정확하고 모든 개수가 0부터 실제 리뷰 수 사이의 정수인지 검사한다.
+ */
 function assertEvidenceTally(tally, fields, reviewCount, path) {
   assertPlainObject(tally, path);
   assertExactKeys(tally, fields, path);
@@ -256,6 +289,9 @@ function assertEvidenceTally(tally, fields, reviewCount, path) {
   }
 }
 
+/**
+ * 사진과 실물이 비슷하다는 근거와 다르다는 근거가 함께 있으면 mixed, 모두 없으면 unknown으로 결정한다.
+ */
 function appearanceSignal(tally) {
   if (tally.similar > 0 && tally.different > 0) return 'mixed';
   if (tally.similar > 0) return 'similar';
@@ -263,17 +299,23 @@ function appearanceSignal(tally) {
   return 'unknown';
 }
 
+/**
+ * 작음·정사이즈·큼의 근거 종류 수에 따라 하나의 사이즈 신호, mixed 또는 unknown을 결정한다.
+ */
 function sizeSignal(tally) {
   const presentSignals = [
     ['runsSmall', 'runs_small'],
     ['trueToSize', 'true_to_size'],
     ['runsLarge', 'runs_large'],
-  ].filter(([field]) => tally[field] > 0);
+  ].filter(/* 실제로 한 번 이상 관측된 사이즈 의견의 종류만 남긴다. */ ([field]) => tally[field] > 0);
   if (presentSignals.length === 0) return 'unknown';
   if (presentSignals.length > 1) return 'mixed';
   return presentSignals[0][1];
 }
 
+/**
+ * 소재 품질의 긍정·부정 근거 유무로 positive·negative·mixed·unknown 중 하나를 결정한다.
+ */
 function materialSignal(tally) {
   if (tally.positive > 0 && tally.negative > 0) return 'mixed';
   if (tally.positive > 0) return 'positive';
@@ -281,6 +323,10 @@ function materialSignal(tally) {
   return 'unknown';
 }
 
+/**
+ * 모델이 반환한 evidenceTally를 검증하고 근거 개수로 후기 신호를 다시 결정한다.
+ * 모델의 신호 이름을 계산된 값으로 교체하고 저장용 계약을 재검증한 결과를 반환한다.
+ */
 export function validateModelEnrichmentOutput(value, product) {
   assertPlainObject(value, 'modelEnrichment');
   assertExactKeys(value, MODEL_ENRICHMENT_OUTPUT_SCHEMA.required, 'modelEnrichment');

@@ -1,3 +1,8 @@
+/**
+ * 역할: 크롤러의 HTTP 요청에 식별 헤더, 시간 초과와 재시도 간격을 적용해 응답 본문을 읽는다.
+ * 상품·리뷰 수집 사이의 요청 간격에 사용하는 대기 함수도 제공한다.
+ */
+
 const DEFAULT_USER_AGENT =
   'LevitProblemSolverCrawler/0.1 (+https://levit-problem-solver.onrender.com; educational MVP)';
 

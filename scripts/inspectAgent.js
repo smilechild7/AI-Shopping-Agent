@@ -1,3 +1,8 @@
+/**
+ * 역할: 정해진 평가 문장이나 직접 지정한 메시지를 실제 Agent 런타임에 보내 결과를 확인하는 CLI다.
+ * 이전 responseId로 후속 대화를 점검할 수 있으며 실행 후 DB 연결을 닫는다.
+ */
+
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 

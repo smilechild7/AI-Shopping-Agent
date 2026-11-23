@@ -1,3 +1,7 @@
+/**
+ * 역할: React·Tailwind 플러그인, 개발 서버의 /api 프록시와 프런트엔드 빌드 출력 경로를 설정한다.
+ */
+
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';

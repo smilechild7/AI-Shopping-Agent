@@ -1,3 +1,7 @@
+/**
+ * 역할: 검색 조건을 더 확인해야 할 때 Agent의 추가 질문을 대화 말풍선으로 표시한다.
+ */
+
 export default function ClarificationMessage({ message }) {
   return (
     <section className="flex items-start gap-3" aria-label="AI 답변">

@@ -1,3 +1,8 @@
+/**
+ * 역할: 원본 상품의 판매 페이지와 이미지 URL에 실제 HTTP 요청을 보내 접근 가능 여부와 콘텐츠 유형을 검사한다.
+ * 쇼핑몰을 번갈아 점검하고 동시 요청 수·재시도·요청 간격을 관리해 실패 목록을 출력한다.
+ */
+
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 

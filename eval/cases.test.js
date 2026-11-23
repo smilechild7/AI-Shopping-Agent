@@ -1,3 +1,7 @@
+/**
+ * 역할: 최종 평가 데이터의 기본 요청·후속 질문 수, 고유 ID와 기대 결과의 명시 여부를 검증한다.
+ */
+
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';

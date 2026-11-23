@@ -1,3 +1,8 @@
+/**
+ * 역할: 이전 AI 응답의 시간순 정렬, 최신 응답 포함 여부와 사용자 질문 연결을 검증한다.
+ * 추천·추가 질문·검색 결과 없음 응답이 대화 이력에 유지되는지 확인한다.
+ */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

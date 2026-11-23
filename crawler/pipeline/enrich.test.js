@@ -1,3 +1,8 @@
+/**
+ * 역할: 모의 모델을 사용해 가공 요청의 구조, 결과 메타데이터와 리뷰 근거 검증을 확인한다.
+ * 리뷰 부재·상반된 근거·분석 수 불일치·불완전하거나 거부된 응답 처리도 검증한다.
+ */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

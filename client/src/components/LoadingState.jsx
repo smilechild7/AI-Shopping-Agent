@@ -1,3 +1,7 @@
+/**
+ * 역할: 검색 응답을 기다리는 동안 시간에 따라 바뀌는 안내 문구와 경과 시간, 로딩 표시를 보여준다.
+ */
+
 import { useEffect, useState } from 'react';
 
 const STAGES = [

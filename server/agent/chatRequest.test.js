@@ -1,3 +1,7 @@
+/**
+ * 역할: 정상 채팅 입력의 정규화와 잘못된 메시지·응답 ID·추가 필드의 거부를 검증한다.
+ */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

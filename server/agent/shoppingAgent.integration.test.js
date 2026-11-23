@@ -1,3 +1,8 @@
+/**
+ * 역할: 모의 모델의 검색 도구 호출을 실제 원본 데이터로 만든 SQLite 검색과 연결하는 통합 테스트다.
+ * 최종 추천에 조건을 만족하는 상품과 DB의 가격·이미지·판매 URL이 병합되는지 검증한다.
+ */
+
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';

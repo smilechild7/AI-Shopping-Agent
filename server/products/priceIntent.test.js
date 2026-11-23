@@ -1,3 +1,7 @@
+/**
+ * 역할: 목표 가격의 ±10% 범위·만원 단위 반올림, 가격대 표현과 명시적 경계의 보존을 검증한다.
+ */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

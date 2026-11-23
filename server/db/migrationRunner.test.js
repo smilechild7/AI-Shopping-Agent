@@ -1,3 +1,7 @@
+/**
+ * 역할: SQL 마이그레이션이 한 번씩만 적용되고 실패한 변경은 롤백되며 적용 이력에 남지 않는지 검증한다.
+ */
+
 import assert from 'node:assert/strict';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';

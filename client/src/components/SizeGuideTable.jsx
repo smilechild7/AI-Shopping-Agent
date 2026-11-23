@@ -1,3 +1,8 @@
+/**
+ * 역할: 공유 파서로 검증한 실측 사이즈 원문을 접을 수 있는 HTML 표로 표시한다.
+ * 판매 사이즈와 맞는 표를 해석할 수 없으면 렌더링하지 않는다.
+ */
+
 import { parseSizeGuideText } from '../../../shared/sizeGuide.js';
 
 export default function SizeGuideTable({ sizes, value }) {

@@ -1,3 +1,7 @@
+/**
+ * 역할: 수집 설정에 필요한 쇼핑몰과 다섯 카테고리가 정의되고 URL·리뷰 수집 방식이 유효한지 검증한다.
+ */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

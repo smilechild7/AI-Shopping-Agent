@@ -1,6 +1,14 @@
+/**
+ * 역할: 쇼핑몰 설정에 따라 Cafe24 HTML 또는 Crema 공개 API에서 상품별 리뷰를 수집한다.
+ * 요청 간격·리뷰 개수 제한을 적용하고 갱신된 상품과 수집 실패 목록을 반환한다.
+ */
+
 import { fetchPage, wait } from './fetch-page.js';
 import { parseCafe24Reviews, parseCremaReviews } from './parse-reviews.js';
 
+/**
+ * Crema 쇼핑몰 설정과 상품 ID로 최근 리뷰 조회 URL을 만들고 필요한 필드와 개수 제한을 지정한다.
+ */
 function cremaReviewsUrl(reviewConfig, productId, limit) {
   const url = new URL(
     `/api/${reviewConfig.brandCode}/reviews`,
@@ -21,6 +29,10 @@ function cremaReviewsUrl(reviewConfig, productId, limit) {
   return url.toString();
 }
 
+/**
+ * 설정된 리뷰 출처에 따라 Cafe24 HTML 또는 Crema JSON을 읽어 공통 리뷰 형식으로 변환한다.
+ * 실제 수집 리뷰 수보다 작지 않은 전체 리뷰 수를 함께 반환하며, 미지원 출처·잘못된 JSON은 거부한다.
+ */
 async function fetchProductReviews({ product, shopConfig, limit, fetcher }) {
   const reviewConfig = shopConfig.reviews;
 
@@ -66,6 +78,10 @@ async function fetchProductReviews({ product, shopConfig, limit, fetcher }) {
   throw new Error(`Unsupported review source for shop ${shopConfig.id}`);
 }
 
+/**
+ * 상품 목록에서 지정된 개수만큼 리뷰를 수집해 상품 복사본의 reviews와 reviewCount를 갱신한다.
+ * 상품별 실패를 기록하면서 다음 상품으로 진행하고, 갱신된 목록과 실패 목록을 함께 반환한다.
+ */
 export async function crawlReviews({
   products,
   shopConfig,
@@ -74,7 +90,7 @@ export async function crawlReviews({
   requestDelayMs = 1_000,
   fetcher = fetchPage,
 }) {
-  const updatedProducts = products.map((product) => ({ ...product }));
+  const updatedProducts = products.map(/* 입력 상품 객체를 얕게 복사해 수집 결과를 원래 객체에 직접 대입하지 않도록 한다. */ (product) => ({ ...product }));
   const targetCount = Math.min(productLimit, updatedProducts.length);
   const failures = [];
 

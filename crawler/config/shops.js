@@ -1,3 +1,8 @@
+/**
+ * 역할: 수집 대상 쇼핑몰별 주소, 카테고리 URL, 상품 탐색 규칙과 리뷰 수집 방식을 정의한다.
+ * 쇼핑몰·카테고리 설정을 조회하고 지원하지 않는 대상을 거부하는 함수를 제공한다.
+ */
+
 const PANTS_PATTERN = /(팬츠|슬랙스|청바지|데님|바지|pants|jean)/i;
 const TOP_PATTERN =
   /(티셔츠|니트|셔츠|블라우스|탑|나시|슬리브리스|베스트|조끼|맨투맨|후드|top|tee|shirt|blouse|knit|sleeveless|vest)/i;

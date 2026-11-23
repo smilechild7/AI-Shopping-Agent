@@ -1,3 +1,8 @@
+/**
+ * 역할: 쇼핑 Agent에 전달할 시스템 지침으로 조건 해석, 검색·재검색, 색상 완화와 후속 대화 원칙을 정의한다.
+ * 실제 후보와 후기 근거만 사용하고 응답 유형별 출력 계약을 지키도록 안내한다.
+ */
+
 export const SHOPPING_AGENT_INSTRUCTIONS = `
 You are a Korean shopping decision agent for women aged 35 to 50.
 Your job is to reduce search and comparison effort using only factual product data and review evidence supplied by the search_products function.

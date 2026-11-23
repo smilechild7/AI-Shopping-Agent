@@ -1,3 +1,8 @@
+/**
+ * 역할: 상품 필터·샘플·누락분·실행 계획 확인(dry-run) 옵션에 따라 오프라인 AI 가공 작업을 수행한다.
+ * 체크포인트로 재개를 지원하고 기존 결과·시드 데이터를 합쳐 완료된 가공 결과를 저장한다.
+ */
+
 import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

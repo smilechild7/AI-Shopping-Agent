@@ -1,3 +1,8 @@
+/**
+ * 역할: Agent의 최종 구조화 응답과 추천 근거 유형에 대한 JSON Schema 및 검증 함수를 정의한다.
+ * 응답 분기, 추천 개수·중복, 비교 항목의 대응 관계와 허용된 근거 값을 검사한다.
+ */
+
 import { CONTROLLED_VOCABULARY } from '../config/vocabulary.js';
 
 export const EVIDENCE_TYPES = Object.freeze([
@@ -31,6 +36,9 @@ export const EVIDENCE_VALUE_ENUMS = Object.freeze({
   review_material_quality: Object.freeze(['positive', 'negative', 'mixed']),
 });
 
+/**
+ * 특정 근거 유형과 그 값의 스키마를 하나로 묶어 type별 구조화 출력 분기를 만든다.
+ */
 function evidenceVariant(type, valueSchema) {
   return {
     type: 'object',
@@ -45,7 +53,7 @@ function evidenceVariant(type, valueSchema) {
 
 const EVIDENCE_ITEM_SCHEMA = {
   anyOf: [
-    ...Object.entries(EVIDENCE_VALUE_ENUMS).map(([type, values]) =>
+    ...Object.entries(EVIDENCE_VALUE_ENUMS).map(/* 근거 유형마다 허용 값 enum을 적용한 스키마 분기를 생성한다. */ ([type, values]) =>
       evidenceVariant(type, { type: 'string', enum: values }),
     ),
     evidenceVariant('color', { type: 'string', minLength: 1, maxLength: 200 }),
@@ -115,12 +123,18 @@ export const AGENT_OUTPUT_SCHEMA = Object.freeze({
   additionalProperties: false,
 });
 
+/**
+ * 검증 대상이 null·배열·기본형이면 해당 경로를 포함한 오류를 던진다.
+ */
 function assertPlainObject(value, path) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error(`${path} must be an object`);
   }
 }
 
+/**
+ * 필수 키의 누락이나 예상하지 않은 키 추가가 있는지 검사한다.
+ */
 function assertExactKeys(value, expectedKeys, path) {
   const actual = Object.keys(value).sort();
   const expected = [...expectedKeys].sort();
@@ -129,12 +143,18 @@ function assertExactKeys(value, expectedKeys, path) {
   }
 }
 
+/**
+ * 값이 문자열이며 공백을 제외한 내용이 있는지 검사한다.
+ */
 function assertNonEmptyString(value, path) {
   if (typeof value !== 'string' || value.trim() === '') {
     throw new Error(`${path} must be a non-empty string`);
   }
 }
 
+/**
+ * 배열의 각 원소가 비어 있지 않은 문자열인지 검사한다.
+ */
 function assertStringArray(value, path) {
   if (!Array.isArray(value)) {
     throw new Error(`${path} must be an array`);
@@ -144,6 +164,9 @@ function assertStringArray(value, path) {
   }
 }
 
+/**
+ * 추천 한 건의 상품 ID·이유·근거 유형과 값·장점·확인사항을 검사하고 오류 위치에 추천 순서를 붙인다.
+ */
 function validateRecommendation(value, index) {
   const path = `agent.recommendations[${index}]`;
   assertPlainObject(value, path);
@@ -180,6 +203,10 @@ function validateRecommendation(value, index) {
   }
 }
 
+/**
+ * 최종 응답의 필드·유형·추천 개수·상품 ID 중복과 비교 항목의 대응 관계를 검사한다.
+ * 추가 질문과 결과 없음의 빈 상품 목록·제안 조건까지 확인한 뒤 통과한 객체를 그대로 반환한다.
+ */
 export function validateAgentOutput(value) {
   assertPlainObject(value, 'agent');
   assertExactKeys(
@@ -199,7 +226,7 @@ export function validateAgentOutput(value) {
   }
   value.recommendations.forEach(validateRecommendation);
 
-  const recommendationIds = value.recommendations.map(({ productId }) => productId);
+  const recommendationIds = value.recommendations.map(/* 추천 목록의 상품 ID만 뽑아 중복과 비교 대상의 대응 여부를 검사한다. */ ({ productId }) => productId);
   if (new Set(recommendationIds).size !== recommendationIds.length) {
     throw new Error('agent.recommendations contains duplicate product IDs');
   }
@@ -216,7 +243,7 @@ export function validateAgentOutput(value) {
     assertNonEmptyString(comparison.tradeoff, `${path}.tradeoff`);
   }
 
-  const comparisonIds = value.comparison.map(({ productId }) => productId);
+  const comparisonIds = value.comparison.map(/* 비교 목록의 상품 ID만 뽑아 중복과 추천 목록 일치 여부를 검사한다. */ ({ productId }) => productId);
   if (new Set(comparisonIds).size !== comparisonIds.length) {
     throw new Error('agent.comparison contains duplicate product IDs');
   }
@@ -234,7 +261,7 @@ export function validateAgentOutput(value) {
     if (
       value.recommendations.length > 1 &&
       (value.comparison.length !== value.recommendations.length ||
-        comparisonIds.some((productId) => !recommendationIds.includes(productId)))
+        comparisonIds.some(/* 비교 목록에 실제 추천하지 않은 상품 ID가 섞였는지 확인한다. */ (productId) => !recommendationIds.includes(productId)))
     ) {
       throw new Error('comparison must contain each recommended product exactly once');
     }

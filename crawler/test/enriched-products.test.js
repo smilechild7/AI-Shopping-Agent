@@ -1,3 +1,7 @@
+/**
+ * 역할: 저장된 가공 데이터가 원본 상품에 대응하고 가공 결과 스키마와 확정된 후기 보정 규칙을 만족하는지 검증한다.
+ */
+
 import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';

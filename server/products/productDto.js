@@ -1,3 +1,7 @@
+/**
+ * 역할: DB 상품과 AI 가공 결과에서 후보 비교에 필요한 필드만 골라 Agent에 전달할 간결한 객체로 변환한다.
+ */
+
 export function toCompactProductDto({ product, enrichment }) {
   return {
     id: product.id,

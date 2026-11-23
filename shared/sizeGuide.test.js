@@ -1,3 +1,8 @@
+/**
+ * 역할: 원문 실측표의 여러 머리글·사이즈 행과 앞뒤 기장 해석을 검증한다.
+ * 변환표, 상품 설명과 구조가 잘못된 행이 실측표로 받아들여지지 않는지 확인한다.
+ */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

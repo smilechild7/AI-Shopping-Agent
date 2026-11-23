@@ -1,3 +1,11 @@
+/**
+ * 역할: SQLite의 쇼핑몰·상품·리뷰·가공 결과 저장과 조회를 담당하는 데이터 접근 계층이다.
+ * 트랜잭션 저장, 검색 조건에 따른 SQL 조회와 DB 행의 상품 객체 변환을 제공한다.
+ */
+
+/**
+ * DB의 JSON 문자열을 복원하고 값이 없거나 깨졌으면 필드에 맞는 기본값을 반환한다.
+ */
 function parseJson(value, fallback) {
   if (value === null || value === undefined) {
     return fallback;
@@ -10,10 +18,16 @@ function parseJson(value, fallback) {
   }
 }
 
+/**
+ * 조회 개수를 양의 정수로 제한하며 최대 100개를 허용하고 잘못된 입력에는 기본값을 사용한다.
+ */
 function positiveLimit(value, fallback = 15) {
   return Number.isSafeInteger(value) && value > 0 ? Math.min(value, 100) : fallback;
 }
 
+/**
+ * 상품 DB 행의 컬럼명·JSON 필드를 애플리케이션 상품 객체로 복원하고, 행이 없으면 null을 반환한다.
+ */
 function hydrateProduct(row) {
   if (!row) {
     return null;
@@ -44,6 +58,9 @@ function hydrateProduct(row) {
   };
 }
 
+/**
+ * 리뷰 DB 행을 공통 리뷰 객체로 바꾸고 프로필·이미지 목록의 JSON을 복원한다.
+ */
 function hydrateReview(row) {
   return {
     id: row.id,
@@ -62,6 +79,9 @@ function hydrateReview(row) {
   };
 }
 
+/**
+ * 단독 조회한 가공 결과 행을 태그·후기 요약·가공 메타데이터 객체로 복원한다.
+ */
 function hydrateEnrichment(row) {
   if (!row) {
     return null;
@@ -82,6 +102,9 @@ function hydrateEnrichment(row) {
   };
 }
 
+/**
+ * 상품과 조인한 행의 가공 컬럼을 복원하고 연결된 가공 데이터가 없으면 null을 반환한다.
+ */
 function hydrateJoinedEnrichment(row) {
   if (!row.enrichment_product_id) {
     return null;
@@ -99,10 +122,17 @@ function hydrateJoinedEnrichment(row) {
   };
 }
 
+/**
+ * 쇼핑몰 ID와 원본 상품 ID를 결합해 저장소 전체에서 사용하는 상품 ID를 만든다.
+ */
 export function productIdForSource(shopId, sourceProductId) {
   return `${shopId}:${sourceProductId}`;
 }
 
+/**
+ * 열린 SQLite 연결에 상품·리뷰·가공 결과 저장과 조회 메서드를 구성한다.
+ * SQL의 준비·트랜잭션과 DB 행 변환을 한곳에 모아 검색·Agent·DB 생성 코드가 재사용하게 한다.
+ */
 export function createProductRepository(database) {
   const selectProductColumns = `
     SELECT
@@ -245,6 +275,9 @@ export function createProductRepository(database) {
       prompt_version = excluded.prompt_version,
       enriched_at = excluded.enriched_at
   `);
+  /**
+   * 쇼핑몰·상품을 갱신 또는 추가하고 해당 상품의 리뷰를 최신 원본 스냅샷으로 교체하는 트랜잭션이다.
+   */
   const saveProductsTransaction = database.transaction((products) => {
     for (const product of products) {
       const shopId = product.source.shopId;
@@ -292,6 +325,9 @@ export function createProductRepository(database) {
       }
     }
   });
+  /**
+   * 가공 결과의 태그·후기 요약을 JSON으로 직렬화해 상품별로 갱신 또는 추가하는 트랜잭션이다.
+   */
   const saveEnrichmentsTransaction = database.transaction((enrichments) => {
     for (const enrichment of enrichments) {
       upsertEnrichment.run({
@@ -311,16 +347,25 @@ export function createProductRepository(database) {
   });
 
   return {
+    /**
+     * 상품 목록과 리뷰를 하나의 트랜잭션으로 저장하고 처리한 상품 수를 반환한다.
+     */
     saveProducts(products) {
       saveProductsTransaction(products);
       return products.length;
     },
 
+    /**
+     * 상품 가공 결과들을 하나의 트랜잭션으로 저장하고 처리한 결과 수를 반환한다.
+     */
     saveProductEnrichments(enrichments) {
       saveEnrichmentsTransaction(enrichments);
       return enrichments.length;
     },
 
+    /**
+     * 카테고리·가격·쇼핑몰 조건과 조회 상한을 적용해 가격·ID 순으로 정렬된 상품 객체 목록을 반환한다.
+     */
     searchProducts({ category, minPrice, maxPrice, shopIds, limit } = {}) {
       const conditions = [];
       const parameters = {};
@@ -338,9 +383,9 @@ export function createProductRepository(database) {
         parameters.maxPrice = maxPrice;
       }
       if (Array.isArray(shopIds) && shopIds.length > 0) {
-        const placeholders = shopIds.map((_, index) => `@shopId${index}`);
+        const placeholders = shopIds.map(/* 쇼핑몰 ID를 SQL에 직접 넣지 않고 바인딩할 수 있도록 위치별 매개변수 이름을 만든다. */ (_, index) => `@shopId${index}`);
         conditions.push(`products.shop_id IN (${placeholders.join(', ')})`);
-        shopIds.forEach((shopId, index) => {
+        shopIds.forEach(/* 쇼핑몰마다 대응하는 SQL 매개변수에 실제 ID를 넣는다. */ (shopId, index) => {
           parameters[`shopId${index}`] = shopId;
         });
       }
@@ -359,6 +404,9 @@ export function createProductRepository(database) {
         .map(hydrateProduct);
     },
 
+    /**
+     * 카테고리·가격에 맞는 상품과 가공 결과를 조인해 조회하며, 선호 점수 계산 전이므로 개수 제한을 두지 않는다.
+     */
     findSearchCandidates({ category, minPrice, maxPrice } = {}) {
       const conditions = [];
       const parameters = {};
@@ -384,39 +432,48 @@ export function createProductRepository(database) {
           ORDER BY products.price ASC, products.id ASC
         `)
         .all(parameters)
-        .map((row) => ({
+        .map(/* 조인된 DB 행을 실제 상품 정보와 가공 정보가 분리된 검색 후보 객체로 바꾼다. */ (row) => ({
           product: hydrateProduct(row),
           enrichment: hydrateJoinedEnrichment(row),
         }));
     },
 
+    /**
+     * 상품 ID 한 개로 쇼핑몰 정보가 포함된 상품을 조회하며, 없으면 null을 반환한다.
+     */
     getProductById(id) {
       return hydrateProduct(
         database.prepare(`${selectProductColumns} WHERE products.id = ?`).get(id),
       );
     },
 
+    /**
+     * 여러 ID의 상품을 한 번에 조회한 뒤 요청한 ID 순서대로 반환하고 존재하지 않는 상품은 제외한다.
+     */
     getProductsByIds(ids) {
       if (!Array.isArray(ids) || ids.length === 0) {
         return [];
       }
 
-      const placeholders = ids.map(() => '?').join(', ');
+      const placeholders = ids.map(/* 상품 ID 값을 안전하게 바인딩할 SQL 위치 매개변수를 개수만큼 만든다. */ () => '?').join(', ');
       const productsById = new Map(
         database
           .prepare(
             `${selectProductColumns} WHERE products.id IN (${placeholders})`,
           )
           .all(...ids)
-          .map((row) => {
+          .map(/* 조회한 상품을 ID와 객체의 쌍으로 바꿔 순서 복원에 사용할 Map을 구성한다. */ (row) => {
             const product = hydrateProduct(row);
             return [product.id, product];
           }),
       );
 
-      return ids.map((id) => productsById.get(id)).filter(Boolean);
+      return ids.map(/* 원래 요청 ID 순서대로 조회 결과를 찾아 추천 순서를 보존한다. */ (id) => productsById.get(id)).filter(Boolean);
     },
 
+    /**
+     * 한 상품에 연결된 리뷰를 작성일과 리뷰 ID의 최신 순서로 조회해 공통 리뷰 객체로 반환한다.
+     */
     getReviewsByProductId(productId) {
       return database
         .prepare(`
@@ -429,6 +486,9 @@ export function createProductRepository(database) {
         .map(hydrateReview);
     },
 
+    /**
+     * 한 상품의 가공 결과를 조회해 태그·후기 요약을 복원하고, 없으면 null을 반환한다.
+     */
     getProductEnrichment(productId) {
       return hydrateEnrichment(
         database

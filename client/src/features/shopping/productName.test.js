@@ -1,3 +1,7 @@
+/**
+ * 역할: 상품명의 홍보·검색 키워드 제거, 길이 제한과 원래 이름으로의 복구 규칙을 검증한다.
+ */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

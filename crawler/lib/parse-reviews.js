@@ -1,3 +1,8 @@
+/**
+ * 역할: Cafe24 리뷰 HTML과 Crema JSON을 공통 리뷰 형식으로 변환한다.
+ * 본문·평점·옵션·날짜·허용된 체형 정보 등을 정리하며 작성자 이름과 ID는 결과에 포함하지 않는다.
+ */
+
 import * as cheerio from 'cheerio';
 
 const EMPTY_REVIEWER_PROFILE = Object.freeze({

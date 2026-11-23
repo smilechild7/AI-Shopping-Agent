@@ -1,3 +1,7 @@
+/**
+ * 역할: 한영 색상 별칭, 사이즈 이름·숫자 범위의 일치와 정보가 없는 상품의 필수 조건 처리 규칙을 검증한다.
+ */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

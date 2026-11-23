@@ -1,3 +1,7 @@
+/**
+ * 역할: 등록된 상품의 사진·실물 신호만 보정되고 다른 후기 축이나 보정 대상이 아닌 상품은 유지되는지 검증한다.
+ */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

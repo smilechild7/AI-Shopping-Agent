@@ -1,3 +1,8 @@
+/**
+ * 역할: 저장된 원본 데이터가 모든 쇼핑몰·카테고리를 포함하고 수집 개수와 상품·리뷰 계약을 만족하는지 검증한다.
+ * 중복 상품, 허용되지 않은 리뷰 필드와 유효하지 않은 실측표도 검사한다.
+ */
+
 import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
 import test from 'node:test';

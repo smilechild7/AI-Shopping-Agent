@@ -1,3 +1,7 @@
+/**
+ * 역할: 카테고리 확인 중 발생한 오류와 일반적인 검색 오류에 각각 적절한 재질문이 선택되는지 검증한다.
+ */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
