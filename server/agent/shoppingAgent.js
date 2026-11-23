@@ -1,15 +1,21 @@
 /**
  * 역할: OpenAI Responses API와 search_products 도구 호출을 반복하며 쇼핑 대화를 실행한다.
- * 검색 인자와 최종 출력 검증, 가격 의도 보정, DB 사실 정보 병합과 호출 사용량 기록을 연결한다.
+ * 사용자 조건 보존·최종 DB 검증·최대 1회 복구를 공통 시간·호출 예산 안에서 실행한다.
  */
 
 import { AI_CONFIG } from '../config/ai.js';
-import { applyPriceIntent } from '../products/priceIntent.js';
+import { randomUUID } from 'node:crypto';
 import { normalizeSearchInput } from '../products/searchInput.js';
 import { SEARCH_PRODUCTS_INPUT_SCHEMA } from '../products/searchSchema.js';
 import { SHOPPING_AGENT_INSTRUCTIONS } from './instructions.js';
 import { AGENT_OUTPUT_SCHEMA, validateAgentOutput } from './outputContract.js';
 import { buildAgentResult } from './resultBuilder.js';
+import { RESPONSE_ID_PATTERN } from './chatRequest.js';
+import { createConstraintStore } from './constraintStore.js';
+import { AgentRuntimeError, ModelValidationError } from './errors.js';
+import { createExecutionBudget } from './executionBudget.js';
+import { ConstraintError, assertRequiredUnchanged } from './requiredConstraints.js';
+import { resolveUserConstraints } from './userConstraints.js';
 
 const SEARCH_PRODUCTS_TOOL = Object.freeze({
   type: 'function',
@@ -20,16 +26,7 @@ const SEARCH_PRODUCTS_TOOL = Object.freeze({
   parameters: SEARCH_PRODUCTS_INPUT_SCHEMA,
 });
 
-export class AgentRuntimeError extends Error {
-  /**
-   * Agent 실행 실패의 코드와 원인 오류를 보관해 API 라우터가 일반 인프라 오류와 구분할 수 있게 한다.
-   */
-  constructor(code, message, options) {
-    super(message, options);
-    this.name = 'AgentRuntimeError';
-    this.code = code;
-  }
-}
+export { AgentRuntimeError } from './errors.js';
 
 /**
  * 모델 출력 중 도구 실행을 요청하는 function_call 항목만 모아 반환한다.
@@ -41,7 +38,7 @@ function toolCalls(response) {
 /**
  * 모델 응답에서 최종 텍스트를 추출하고 불완전·거부·출력 누락을 서로 다른 Agent 오류로 변환한다.
  */
-function responseText(response) {
+function assertCompleteResponse(response) {
   if (response.status === 'incomplete') {
     throw new AgentRuntimeError(
       'incomplete_response',
@@ -57,9 +54,15 @@ function responseText(response) {
           'OpenAI response was refused',
         );
       }
-      if (content.type === 'output_text' && content.text) {
-        return content.text;
-      }
+    }
+  }
+}
+
+function responseText(response) {
+  assertCompleteResponse(response);
+  for (const output of response.output ?? []) {
+    for (const content of output.content ?? []) {
+      if (content.type === 'output_text' && content.text) return content.text;
     }
   }
 
@@ -103,10 +106,10 @@ function parseFinalOutput(response) {
 }
 
 /**
- * 허용된 search_products 호출인지 확인하고 JSON 인자를 정규화한 뒤 원문의 목표 가격을 보정한다.
- * 현재 이 함수에는 사용자 필수 조건 스냅샷과 모델 인자를 비교하는 검사가 연결되어 있지 않다.
+ * 허용된 search_products 호출인지 확인하고 JSON 인자를 정규화한다.
+ * 원문에서 별도로 확정한 조건과의 비교는 검색 실행 직전에 수행한다.
  */
-function parseToolInput(toolCall, userMessage) {
+function parseToolInput(toolCall) {
   if (toolCall.name !== 'search_products') {
     throw new AgentRuntimeError(
       'unknown_tool',
@@ -126,7 +129,7 @@ function parseToolInput(toolCall, userMessage) {
   }
 
   try {
-    return applyPriceIntent(normalizeSearchInput(value), userMessage);
+    return normalizeSearchInput(value);
   } catch (error) {
     throw new AgentRuntimeError(
       'invalid_tool_arguments',
@@ -145,9 +148,9 @@ function usageTotals(responses) {
      * 응답의 사용량을 누적하며 사용량 필드가 없으면 0으로 계산한다.
      */
     (total, response) => ({
-      inputTokens: total.inputTokens + (response.usage?.input_tokens ?? 0),
-      outputTokens: total.outputTokens + (response.usage?.output_tokens ?? 0),
-      totalTokens: total.totalTokens + (response.usage?.total_tokens ?? 0),
+      inputTokens: total.inputTokens + (response?.usage?.input_tokens ?? 0),
+      outputTokens: total.outputTokens + (response?.usage?.output_tokens ?? 0),
+      totalTokens: total.totalTokens + (response?.usage?.total_tokens ?? 0),
     }),
     { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
   );
@@ -156,14 +159,20 @@ function usageTotals(responses) {
 /**
  * 모델 설정·이전 응답 ID·지침·검색 도구·최종 출력 스키마를 Responses API 요청 옵션으로 조립한다.
  */
-function requestOptions({ config, input, previousResponseId }) {
+function requestOptions({ config, input, previousResponseId, required, toolChoice }) {
   return {
     model: config.model,
     previous_response_id: previousResponseId ?? undefined,
-    instructions: SHOPPING_AGENT_INSTRUCTIONS,
+    instructions: SHOPPING_AGENT_INSTRUCTIONS + '\n\nServer-authoritative required constraints: ' +
+      JSON.stringify(required) + '\nCopy these required conditions exactly into every search_products call. ' +
+      'Only preferred conditions may change. Never infer additional required conditions. ' +
+      'If the server requests correction, correct only the specified validation failure; ' +
+      'keep these constraints and use only the latest search candidates. ' +
+      'Exclude a rejected product whose current DB fields do not meet the constraints. ' +
+      'Return no_result if no remaining candidate can be justified.',
     input,
     tools: [SEARCH_PRODUCTS_TOOL],
-    tool_choice: 'auto',
+    tool_choice: toolChoice,
     parallel_tool_calls: false,
     text: {
       format: {
@@ -180,15 +189,29 @@ function requestOptions({ config, input, previousResponseId }) {
 }
 
 /**
- * OpenAI 클라이언트·검색 실행 함수·상품 저장소를 주입받아 chat 메서드를 제공한다.
- * 필수 의존성을 먼저 확인하고 실제 모델 호출은 chat 실행 시점까지 미룬다.
+ * 모델이 고칠 수 있는 명시적 검증 오류만 분류한다. DB·프로그램·인프라 오류는 원형대로 전파한다.
+ */
+function recoverableReason(error) {
+  if (error instanceof ModelValidationError) return error.reason;
+  if (error instanceof ConstraintError &&
+      ['constraint_violation', 'required_product_mismatch'].includes(error.code)) return error.code;
+  if (error instanceof AgentRuntimeError &&
+      ['invalid_json', 'invalid_output', 'invalid_tool_arguments'].includes(error.code)) return error.code;
+  return null;
+}
+
+/**
+ * 의존성과 기본 설정을 조립하고 Agent 인스턴스의 응답별 조건 저장소를 유지한다.
+ * 예산·후보·복구 상태는 chat 호출 안에 두어 동시 요청과 대화 분기를 격리한다.
  */
 export function createShoppingAgent({
   client,
   search,
   repository,
-  config = AI_CONFIG.agent,
+  config = {},
   logger = console,
+  constraintStore = createConstraintStore(),
+  now,
 }) {
   if (!client?.responses?.create) {
     throw new Error('Shopping Agent requires an OpenAI Responses client');
@@ -196,101 +219,189 @@ export function createShoppingAgent({
   if (typeof search !== 'function') {
     throw new Error('Shopping Agent requires a search executor');
   }
+  const settings = { ...AI_CONFIG.agent, ...config };
+  if (![0, 1].includes(settings.maxRecoveryAttempts) ||
+      !Number.isSafeInteger(settings.maxToolRounds) || settings.maxToolRounds < 1) {
+    throw new Error('Invalid Agent round or recovery limit');
+  }
 
   return {
     /**
-     * 사용자 메시지로 모델을 호출하고 도구 요청이면 검색 결과를 다음 모델 입력으로 돌려준다.
-     * 최종 출력이면 계약과 추천 근거를 검증해 DB 정보를 병합하며, 호출 반복 한도와 토큰 집계를 관리한다.
+     * 사용자 조건을 먼저 확정하고 검색 전·최종 DB 조회 후에 검증한다.
+     * 수정 가능한 오류는 한 번만 재생성하며, 검증·예산 확인이 끝난 응답의 조건만 저장한다.
      */
-    async chat({ message, previousResponseId = null }) {
+    async chat({ message, previousResponseId = null, selectedFilters = {}, signal }) {
+      const requestId = randomUUID();
+      const budget = createExecutionBudget({
+        signal, now,
+        timeoutMs: settings.requestTimeoutMs,
+        maxModelCalls: settings.maxModelCalls,
+        maxSearchCalls: settings.maxSearchCalls,
+      });
       const responses = [];
+      const recovery = { attempts: 0, trigger: null, outcome: 'not_needed' };
+      let recoveryStart = null;
+      let modelCallsBeforeRecovery = 0;
+      let initialOutcome = null;
+      let result = null;
+      let failure = null;
       let priorId = previousResponseId;
       let nextInput = [{ role: 'user', content: message }];
       let latestSearch = null;
-      let usageLogged = false;
+      // search: 검증된 검색을 한 번 요구 / final: 추가 검색 없이 최종 응답 요구
+      let correctionMode = null;
 
       try {
-        for (let round = 0; round < config.maxToolRounds; round += 1) {
-          const response = await client.responses.create(
-            requestOptions({ config, input: nextInput, previousResponseId: priorId }),
-          );
-          responses.push(response);
+        budget.assertActive();
+        const previousRequired = previousResponseId ? constraintStore.get(previousResponseId) : {};
+        const { required, clarification } = resolveUserConstraints({
+          message, previousRequired, selectedFilters,
+        });
+        if (clarification) {
+          budget.assertActive();
+          result = {
+            type: 'clarification', responseId: previousResponseId,
+            source: 'server', message: clarification,
+          };
+          initialOutcome = 'clarification';
+          return result;
+        }
 
-          const calls = toolCalls(response);
-          if (calls.length > 1) {
-            throw new AgentRuntimeError(
-              'multiple_tool_calls',
-              'OpenAI returned more than one tool call in a round',
-            );
+        while (true) {
+          if (!recovery.attempts && responses.length >= settings.maxToolRounds) {
+            throw new AgentRuntimeError('tool_round_limit', 'OpenAI exceeded the normal round limit');
           }
+          const toolChoice = correctionMode === 'search'
+            ? { type: 'function', name: 'search_products' }
+            : correctionMode === 'final' || budget.searchCalls >= settings.maxSearchCalls ||
+                (!recovery.attempts && responses.length === settings.maxToolRounds - 1)
+              ? 'none'
+              : 'auto';
+          const response = await budget.model((transport) => client.responses.create(
+            requestOptions({
+              config: settings, input: nextInput, previousResponseId: priorId, required, toolChoice,
+            }),
+            transport,
+          ));
+          responses.push(response);
+          if (!response || typeof response.id !== 'string' || !RESPONSE_ID_PATTERN.test(response.id)) {
+            throw new AgentRuntimeError('invalid_output', 'OpenAI response ID is missing or invalid');
+          }
+          assertCompleteResponse(response);
+          const calls = toolCalls(response);
 
-          if (calls.length === 0) {
-            const output = parseFinalOutput(response);
-            let result;
-            try {
-              result = buildAgentResult({
-                output,
-                responseId: response.id,
-                latestSearch,
-                repository,
-              });
-            } catch (error) {
-              throw new AgentRuntimeError(
-                'factual_validation_failed',
-                `Agent factual validation failed: ${error.message}`,
-                { cause: error },
-              );
+          try {
+            if (calls.length > 1) {
+              throw new AgentRuntimeError('multiple_tool_calls', 'OpenAI returned multiple tool calls');
+            }
+            if (calls.length === 1) {
+              if (correctionMode === 'final' ||
+                  (!recovery.attempts && responses.length === settings.maxToolRounds)) {
+                throw new AgentRuntimeError(
+                  recovery.attempts ? 'invalid_output' : 'tool_round_limit',
+                  'A final response was required without another search',
+                );
+              }
+              const call = calls[0];
+              const normalizedInput = parseToolInput(call);
+              assertRequiredUnchanged(normalizedInput.required, required);
+              // 비교를 통과한 뒤 동일한 불변 스냅샷을 모든 검색에 제공한다.
+              normalizedInput.required = required;
+              const searchResult = await budget.search(() => search(normalizedInput));
+              latestSearch = { input: normalizedInput, result: searchResult };
+              priorId = response.id;
+              nextInput = [{
+                type: 'function_call_output', call_id: call.call_id,
+                output: JSON.stringify(searchResult),
+              }];
+              if (recovery.attempts) correctionMode = 'final';
+              continue;
             }
 
-            logger.log(
-              JSON.stringify({
-                event: 'agent.complete',
-                type: result.type,
-                rounds: responses.length,
-                candidateCount: latestSearch?.result.candidates.length ?? 0,
-                recommendationCount: result.products?.length ?? 0,
-                usage: usageTotals(responses),
-              }),
-            );
-            usageLogged = true;
+            if (correctionMode === 'search') {
+              throw new AgentRuntimeError('invalid_output', 'Correction requires a validated search first');
+            }
+            const output = parseFinalOutput(response);
+            result = buildAgentResult({
+              output, responseId: response.id, latestSearch, repository, required,
+            });
+            budget.assertActive();
+            constraintStore.set(response.id, required);
+            initialOutcome ??= 'validated';
+            if (recovery.attempts) recovery.outcome = 'succeeded';
             return result;
-          }
+          } catch (error) {
+            result = null;
+            const reason = recoverableReason(error);
+            if (!reason) throw error;
+            initialOutcome ??= 'validation_rejected';
+            logger.log(JSON.stringify({
+              event: 'agent.validation_rejected', requestId,
+              code: error.code, reason, fields: error.fields ?? [],
+            }));
+            if (recovery.attempts >= settings.maxRecoveryAttempts) {
+              recovery.outcome = recovery.attempts ? 'failed' : 'disabled';
+              throw error;
+            }
 
-          if (round === config.maxToolRounds - 1) {
-            throw new AgentRuntimeError(
-              'tool_round_limit',
-              `OpenAI exceeded the ${config.maxToolRounds}-round limit`,
-            );
+            const needsSearch = calls.length === 1 || !latestSearch;
+            recovery.trigger = reason;
+            // 검색 인자 수정에는 수정 호출과 검색 후 최종 호출이 모두 필요하다.
+            try {
+              budget.reserveModelCalls(needsSearch ? 2 : 1);
+              if (needsSearch) budget.reserveSearchCall();
+            } catch (budgetError) {
+              recovery.outcome = 'budget_exhausted';
+              throw budgetError;
+            }
+            recovery.attempts += 1;
+            recovery.outcome = 'in_progress';
+            recoveryStart = responses.length;
+            modelCallsBeforeRecovery = budget.modelCalls;
+            correctionMode = needsSearch ? 'search' : 'final';
+            priorId = response.id;
+            const correction = JSON.stringify({
+              error: reason, required, fields: error.fields ?? [],
+              ...(error.productId ? { rejectedProductId: error.productId } : {}),
+              instruction: needsSearch
+                ? 'Call search_products once with the exact required constraints, correcting the invalid arguments.'
+                : 'Correct the final JSON using the latest candidates and exact required constraints. Do not search again.',
+            });
+            nextInput = calls.length === 1
+              ? [{ type: 'function_call_output', call_id: calls[0].call_id, output: correction }]
+              : [{ role: 'user', content: correction }];
           }
-
-          const call = calls[0];
-          const normalizedInput = parseToolInput(call, message);
-          const searchResult = search(normalizedInput);
-          latestSearch = { input: normalizedInput, result: searchResult };
-          priorId = response.id;
-          nextInput = [
-            {
-              type: 'function_call_output',
-              call_id: call.call_id,
-              output: JSON.stringify(searchResult),
-            },
-          ];
         }
-
-        throw new AgentRuntimeError(
-          'tool_round_limit',
-          `OpenAI exceeded the ${config.maxToolRounds}-round limit`,
-        );
+      } catch (error) {
+        result = null;
+        failure = error;
+        if (recovery.attempts) recovery.outcome = 'failed';
+        throw error;
       } finally {
-        if (!usageLogged && responses.length > 0) {
-          logger.log(
-            JSON.stringify({
-              event: 'agent.failed',
-              rounds: responses.length,
-              usage: usageTotals(responses),
-            }),
-          );
-        }
+        budget.dispose();
+        const split = recoveryStart ?? responses.length;
+        logger.log(JSON.stringify({
+          event: result ? 'agent.complete' : 'agent.failed',
+          requestId, type: result?.type ?? null, source: result?.source ?? 'model',
+          code: failure?.code ?? failure?.name ?? null,
+          initialOutcome: initialOutcome ?? 'failed',
+          finalOutcome: result ? 'validated' : 'failed',
+          rounds: responses.length,
+          modelCalls: budget.modelCalls, searchCalls: budget.searchCalls,
+          durationMs: budget.durationMs,
+          candidateCount: latestSearch?.result.candidates.length ?? 0,
+          recommendationCount: result?.products?.length ?? 0,
+          recovery: {
+            ...recovery,
+            additionalModelCalls: recoveryStart === null ? 0 : budget.modelCalls - modelCallsBeforeRecovery,
+          },
+          usageBeforeRecovery: usageTotals(responses.slice(0, split)),
+          usageRecovery: usageTotals(responses.slice(split)),
+          usage: usageTotals(responses),
+          usageComplete: responses.length === budget.modelCalls && responses.every((response) =>
+            ['input_tokens', 'output_tokens', 'total_tokens'].every((field) =>
+              Number.isFinite(response?.usage?.[field]))),
+        }));
       }
     },
   };

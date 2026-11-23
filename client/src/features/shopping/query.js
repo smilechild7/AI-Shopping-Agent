@@ -28,6 +28,16 @@ export const PRICE_OPTIONS = Object.freeze(
   })),
 );
 
+/** 현재 요청에서 사용자가 선택한 필터만 구조화해 서버에 전달한다. */
+export function buildSelectedFilters({ category, maxPrice, size = '' }) {
+  return {
+    ...(CATEGORY_LABELS[category] ? { category } : {}),
+    ...(maxPrice !== null && maxPrice !== undefined && maxPrice !== ''
+      ? { maxPrice: Number(maxPrice) } : {}),
+    ...(size.trim() ? { size: size.trim() } : {}),
+  };
+}
+
 export function buildChatMessage({ query, category, maxPrice, size }) {
   const trimmedQuery = query.trim();
   if (!trimmedQuery) return null;

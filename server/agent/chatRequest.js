@@ -3,7 +3,9 @@
  * 검증을 통과한 메시지의 양끝 공백을 제거하고 대화 ID의 기본값을 정리한다.
  */
 
-const RESPONSE_ID_PATTERN = /^resp_[A-Za-z0-9_-]{1,200}$/u;
+import { validateSelectedFilters } from './userConstraints.js';
+
+export const RESPONSE_ID_PATTERN = /^resp_[A-Za-z0-9_-]{1,200}$/u;
 
 export function validateChatRequest(value, { maxMessageLength }) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
@@ -11,7 +13,7 @@ export function validateChatRequest(value, { maxMessageLength }) {
   }
 
   const keys = Object.keys(value).sort();
-  const allowedKeys = ['message', 'previousResponseId'];
+  const allowedKeys = ['message', 'previousResponseId', 'selectedFilters'];
   if (keys.some((key) => !allowedKeys.includes(key))) {
     throw new Error('request body contains unsupported fields');
   }
@@ -33,5 +35,11 @@ export function validateChatRequest(value, { maxMessageLength }) {
     throw new Error('previousResponseId is invalid');
   }
 
-  return { message, previousResponseId };
+  return {
+    message,
+    previousResponseId,
+    ...('selectedFilters' in value
+      ? { selectedFilters: validateSelectedFilters(value.selectedFilters) }
+      : {}),
+  };
 }

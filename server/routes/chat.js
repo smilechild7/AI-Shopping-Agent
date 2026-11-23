@@ -4,13 +4,19 @@
  */
 
 import { Router } from 'express';
-import { AgentRuntimeError } from '../agent/shoppingAgent.js';
+import { AgentRuntimeError, ExecutionBudgetError } from '../agent/errors.js';
+import { ConstraintError } from '../agent/requiredConstraints.js';
 import { validateChatRequest } from '../agent/chatRequest.js';
 
 /**
  * Agent 검증·인증·이전 대화 상태·시간 초과 오류를 외부 HTTP 상태 코드로 분류한다.
  */
 function upstreamStatus(error, hasPreviousResponseId) {
+  if (error instanceof ConstraintError && error.code === 'invalid_conversation_state') return 400;
+  if (error instanceof ExecutionBudgetError) {
+    if (error.code === 'request_timeout') return 504;
+    if (error.code === 'request_cancelled') return 499;
+  }
   if (error instanceof AgentRuntimeError) {
     return 502;
   }
@@ -30,10 +36,12 @@ function upstreamStatus(error, hasPreviousResponseId) {
  * 내부 오류와 HTTP 상태를 클라이언트가 이해할 공개 오류 코드로 바꾼다.
  */
 function publicError(error, status) {
-  if (error instanceof AgentRuntimeError) return 'agent_response_invalid';
   if (status === 400) return 'invalid_conversation_state';
   if (status === 503) return 'agent_unavailable';
   if (status === 504) return 'agent_timeout';
+  if (status === 499) return 'request_cancelled';
+  if (error instanceof AgentRuntimeError || error instanceof ConstraintError ||
+      error instanceof ExecutionBudgetError) return 'agent_response_invalid';
   return 'agent_failed';
 }
 
@@ -65,8 +73,18 @@ export function createChatRouter({
       return;
     }
 
+    const controller = new AbortController();
+    const cancel = () => controller.abort();
+    const onClose = () => {
+      if (!response.writableEnded) cancel();
+    };
+    request.once('aborted', cancel);
+    response.once('close', onClose);
+    if (request.aborted || response.destroyed) cancel();
+
     try {
-      response.status(200).json(await chat(input));
+      const result = await chat({ ...input, signal: controller.signal });
+      if (!controller.signal.aborted && !response.destroyed) response.status(200).json(result);
     } catch (error) {
       const status = upstreamStatus(error, input.previousResponseId !== null);
       logger.error(
@@ -77,7 +95,12 @@ export function createChatRouter({
           httpStatus: status,
         }),
       );
-      response.status(status).json({ error: publicError(error, status) });
+      if (!controller.signal.aborted && !response.destroyed) {
+        response.status(status).json({ error: publicError(error, status) });
+      }
+    } finally {
+      request.removeListener('aborted', cancel);
+      response.removeListener('close', onClose);
     }
   });
 

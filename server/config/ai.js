@@ -7,8 +7,12 @@ export const AI_CONFIG = Object.freeze({
     model: 'gpt-5.6-sol',
     reasoningEffort: 'low',
     maxToolRounds: 3,
+    maxRecoveryAttempts: 1,
+    maxModelCalls: 4,
+    maxSearchCalls: 2,
+    requestTimeoutMs: 90_000,
     maxOutputTokens: 4_000,
-    maxRetries: 1,
+    maxRetries: 0,
     timeoutMs: 90_000,
   }),
   enrichment: Object.freeze({

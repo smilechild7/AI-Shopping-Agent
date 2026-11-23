@@ -3,6 +3,7 @@
  */
 
 import assert from 'node:assert/strict';
+import { getEventListeners } from 'node:events';
 import test from 'node:test';
 
 import {
@@ -22,6 +23,37 @@ function mockResponse({ ok, status, body, retryAfter = null }) {
     },
   };
 }
+
+test('transmits structured UI filters with the request', async () => {
+  const selectedFilters = { category: 'pants', maxPrice: 50_000, size: 'M' };
+  await postChat({
+    message: '10만원 이하 원피스', selectedFilters,
+    fetchImpl: async (_url, options) => {
+      assert.deepEqual(JSON.parse(options.body).selectedFilters, selectedFilters);
+      return mockResponse({ ok: true, status: 200, body: { type: 'clarification' } });
+    },
+  });
+});
+
+test('skips a pre-cancelled request and removes its abort listener', async () => {
+  const controller = new AbortController();
+  controller.abort();
+  await assert.rejects(postChat({
+    message: '바지', signal: controller.signal,
+    fetchImpl: () => assert.fail('a cancelled request must not start'),
+  }), { code: 'request_cancelled' });
+  assert.equal(getEventListeners(controller.signal, 'abort').length, 0);
+});
+
+test('discards a late response from an adapter that ignores cancellation', async () => {
+  const controller = new AbortController();
+  const pending = Promise.withResolvers();
+  const running = postChat({ message: '바지', signal: controller.signal, fetchImpl: () => pending.promise });
+  controller.abort();
+  pending.resolve(mockResponse({ ok: true, status: 200, body: { type: 'recommendation' } }));
+  await assert.rejects(running, { code: 'request_cancelled' });
+  assert.equal(getEventListeners(controller.signal, 'abort').length, 0);
+});
 
 test('posts the existing chat contract with conversation state', async () => {
   let request;

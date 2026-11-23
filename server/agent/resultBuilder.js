@@ -4,6 +4,8 @@
  */
 
 import { colorsMatch, sizesMatch } from '../products/searchNormalization.js';
+import { ModelValidationError } from './errors.js';
+import { assertProductMeetsRequired } from './requiredConstraints.js';
 
 /**
  * 근거 유형에 따라 최근 검색 후보의 실제 옵션·태그·후기 신호와 근거 값을 대조한다.
@@ -84,13 +86,14 @@ function mergeProduct(candidate, factualProduct, recommendation) {
 
 /**
  * 응답 분기에 맞는 공개 결과를 만들고 추천 ID·근거·비교 항목을 최근 검색에 대조한다.
- * 추천 상품을 DB에서 다시 읽어 사실 필드를 병합한다. 자유 서술 전체나 사용자 조건 스냅샷을 검사하는 함수는 아니다.
+ * 추천 상품을 DB에서 다시 읽어 필수 조건을 검증하고 사실 필드를 병합한다. 자유 서술 전체의 정확성을 검사하지는 않는다.
  */
 export function buildAgentResult({
   output,
   responseId,
   latestSearch,
   repository,
+  required = latestSearch?.input.required,
 }) {
   if (output.type === 'clarification') {
     return {
@@ -101,7 +104,7 @@ export function buildAgentResult({
   }
 
   if (!latestSearch) {
-    throw new Error(`${output.type} response requires a completed search`);
+    throw new ModelValidationError('search_required', `${output.type} response requires a completed search`);
   }
 
   if (output.type === 'no_result') {
@@ -119,13 +122,13 @@ export function buildAgentResult({
   for (const recommendation of output.recommendations) {
     const candidate = candidatesById.get(recommendation.productId);
     if (!candidate) {
-      throw new Error(
+      throw new ModelValidationError('candidate_not_found',
         `recommended product is outside the latest candidate set: ${recommendation.productId}`,
       );
     }
     for (const evidence of recommendation.evidence) {
       if (!evidenceMatches(candidate, evidence, latestSearch.input)) {
-        throw new Error(
+        throw new ModelValidationError('evidence_mismatch',
           `recommendation evidence does not match candidate: ${recommendation.productId} ${evidence.type}=${evidence.value}`,
         );
       }
@@ -135,7 +138,7 @@ export function buildAgentResult({
   const recommendationIds = output.recommendations.map(/* 최종 추천의 상품 ID를 뽑아 비교 항목 확인과 DB 일괄 조회에 사용한다. */ ({ productId }) => productId);
   for (const comparison of output.comparison) {
     if (!recommendationIds.includes(comparison.productId)) {
-      throw new Error(
+      throw new ModelValidationError('comparison_mismatch',
         `comparison product is outside recommendations: ${comparison.productId}`,
       );
     }
@@ -143,8 +146,12 @@ export function buildAgentResult({
 
   const factualProducts = repository.getProductsByIds(recommendationIds);
   const factualById = new Map(factualProducts.map(/* DB에서 다시 조회한 실제 상품을 ID와 객체의 쌍으로 바꿔 병합 준비를 한다. */ (product) => [product.id, product]));
-  if (factualById.size !== recommendationIds.length) {
-    throw new Error('one or more recommended products are missing from the database');
+  if (factualById.size !== recommendationIds.length ||
+      recommendationIds.some((id) => !factualById.has(id))) {
+    throw new ModelValidationError('missing_product', 'one or more recommended products are missing from the database');
+  }
+  for (const product of factualProducts) {
+    assertProductMeetsRequired(product, required);
   }
 
   return {
@@ -152,7 +159,7 @@ export function buildAgentResult({
     responseId,
     message: output.message,
     criteria: {
-      required: latestSearch.input.required,
+      required,
       preferred: latestSearch.input.preferred,
     },
     products: output.recommendations.map(/* 모델이 선택한 추천 순서대로 후보·DB 상품·추천 설명을 하나의 화면용 상품 객체로 합친다. */ (recommendation) =>

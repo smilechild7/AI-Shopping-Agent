@@ -13,6 +13,7 @@ const config = {
   reasoningEffort: 'low',
   maxToolRounds: 3,
   maxOutputTokens: 4000,
+  maxRecoveryAttempts: 0, // 이 파일은 즉시 거부 경로, recovery.test.js는 복구 활성화 경로를 검증한다.
 };
 const candidate = {
   id: 'shop:1',
@@ -68,7 +69,7 @@ function toolResponse(id = 'resp_tool', overrides = {}) {
             category: 'pants',
             minPrice: null,
             maxPrice: 100000,
-            colors: ['black'],
+            colors: [],
             sizes: [],
           },
           preferred: {
@@ -162,7 +163,7 @@ test('executes strict search tool then returns factual recommendations', async (
     finalResponse(recommendationOutput()),
   ]);
 
-  const result = await agent.chat({ message: '검정 출근 바지 찾아줘' });
+  const result = await agent.chat({ message: '10만원 이하 검정 출근 바지 찾아줘' });
 
   assert.equal(result.type, 'recommendation');
   assert.equal(result.products[0].id, 'shop:1');
@@ -177,11 +178,14 @@ test('executes strict search tool then returns factual recommendations', async (
   assert.equal(JSON.parse(requests[1].input[0].output).candidates.length, 1);
 });
 
-test('normalizes a bare user target price before executing search', async () => {
+test('corrects a bare target price interpretation before executing search', async () => {
   const input = JSON.parse(toolResponse().output[0].arguments);
   input.query = '8만원 바지';
   input.required.minPrice = null;
   input.required.maxPrice = 80_000;
+  const corrected = structuredClone(input);
+  corrected.required.minPrice = 70_000;
+  corrected.required.maxPrice = 90_000;
   const noResult = {
     type: 'no_result',
     message: '조건에 맞는 상품을 찾지 못했어요.',
@@ -189,15 +193,17 @@ test('normalizes a bare user target price before executing search', async () => 
     recommendations: [],
     comparison: [],
   };
-  const { agent, searchCalls } = createMockAgent(
-    [toolResponse('resp_price', { input }), finalResponse(noResult)],
-    { searchResult: { hardFilterMatchCount: 0, candidates: [] } },
+  const { agent, searchCalls, requests } = createMockAgent(
+    [toolResponse('resp_price', { input }), toolResponse('resp_corrected_price', { input: corrected }), finalResponse(noResult)],
+    { config: { ...config, maxRecoveryAttempts: 1 }, searchResult: { hardFilterMatchCount: 0, candidates: [] } },
   );
 
   await agent.chat({ message: '8만원 바지' });
 
   assert.equal(searchCalls[0].required.minPrice, 70_000);
   assert.equal(searchCalls[0].required.maxPrice, 90_000);
+  assert.equal(searchCalls.length, 1);
+  assert.equal(requests.length, 3);
 });
 
 test('returns one clarification without searching and continues previous response state', async () => {
@@ -209,9 +215,11 @@ test('returns one clarification without searching and continues previous respons
     comparison: [],
   };
   const { agent, requests, searchCalls } = createMockAgent([
+    finalResponse(clarification, 'resp_previous'),
     finalResponse(clarification),
   ]);
 
+  await agent.chat({ message: '예쁜 옷 추천해줘' });
   const result = await agent.chat({
     message: '예쁜 옷 추천해줘',
     previousResponseId: 'resp_previous',
@@ -219,7 +227,7 @@ test('returns one clarification without searching and continues previous respons
 
   assert.equal(result.type, 'clarification');
   assert.equal(searchCalls.length, 0);
-  assert.equal(requests[0].previous_response_id, 'resp_previous');
+  assert.equal(requests[1].previous_response_id, 'resp_previous');
 });
 
 test('returns no_result after a zero-candidate search', async () => {
@@ -230,8 +238,10 @@ test('returns no_result after a zero-candidate search', async () => {
     recommendations: [],
     comparison: [],
   };
+  const input = JSON.parse(toolResponse().output[0].arguments);
+  input.required.maxPrice = 1_000;
   const { agent } = createMockAgent(
-    [toolResponse(), finalResponse(noResult)],
+    [toolResponse('resp_search', { input }), finalResponse(noResult)],
     { searchResult: { hardFilterMatchCount: 0, candidates: [] } },
   );
 
@@ -341,7 +351,7 @@ test('rejects recommendation IDs outside the latest search candidates', async ()
   );
 
   await assert.rejects(
-    agent.chat({ message: '검정 바지' }),
+    agent.chat({ message: '10만원 이하 검정 바지' }),
     (error) =>
       error instanceof AgentRuntimeError &&
       error.code === 'factual_validation_failed',
@@ -361,7 +371,7 @@ test('stops repeated tool calls at the configured round limit', async () => {
   );
 
   await assert.rejects(
-    agent.chat({ message: '검정 바지' }),
+    agent.chat({ message: '10만원 이하 검정 바지' }),
     (error) => error instanceof AgentRuntimeError && error.code === 'tool_round_limit',
   );
 });

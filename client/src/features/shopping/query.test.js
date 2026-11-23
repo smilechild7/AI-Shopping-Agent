@@ -7,10 +7,18 @@ import test from 'node:test';
 
 import {
   buildChatMessage,
+  buildSelectedFilters,
   CATEGORY_OPTIONS,
   selectionSummary,
   shouldShowOptionalFilters,
 } from './query.js';
+
+test('sends only explicitly selected filters, preserving a zero upper budget', () => {
+  assert.deepEqual(buildSelectedFilters({ category: 'pants', maxPrice: 50000, size: ' M ' }),
+    { category: 'pants', maxPrice: 50000, size: 'M' });
+  assert.deepEqual(buildSelectedFilters({ category: '', maxPrice: null, size: ' ' }), {});
+  assert.deepEqual(buildSelectedFilters({ maxPrice: 0 }), { maxPrice: 0 });
+});
 
 test('combines free text and selected must-have conditions', () => {
   assert.equal(

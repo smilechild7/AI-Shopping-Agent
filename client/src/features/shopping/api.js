@@ -36,6 +36,7 @@ async function responseBody(response) {
 export async function postChat({
   message,
   previousResponseId = null,
+  selectedFilters,
   fetchImpl = fetch,
   signal,
   timeoutMs = DEFAULT_TIMEOUT_MS,
@@ -46,16 +47,19 @@ export async function postChat({
    * 화면 등 상위 호출자의 취소 신호를 내부 HTTP 요청으로 전달한다.
    */
   const abortFromParent = () => timeoutController.abort(signal.reason);
-  signal?.addEventListener('abort', abortFromParent, { once: true });
+  if (signal?.aborted) abortFromParent();
+  else signal?.addEventListener('abort', abortFromParent, { once: true });
 
   try {
+    timeoutController.signal.throwIfAborted();
     const response = await fetchImpl('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, previousResponseId }),
+      body: JSON.stringify({ message, previousResponseId, selectedFilters }),
       signal: timeoutController.signal,
     });
     const body = await responseBody(response);
+    timeoutController.signal.throwIfAborted();
     if (!response.ok) {
       const retryAfterHeader = Number(response.headers?.get?.('Retry-After'));
       throw new ChatApiError(body.message || body.error || 'Agent request failed', {

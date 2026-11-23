@@ -7,6 +7,7 @@ import { useState } from 'react';
 
 import {
   buildChatMessage,
+  buildSelectedFilters,
   CATEGORY_OPTIONS,
   PRICE_OPTIONS,
   selectionSummary,
@@ -51,7 +52,8 @@ export default function SearchInput({ compact = false, disabled, onSubmit }) {
     const displayMessage = [submittedQuery.trim() || '선택 조건으로 검색', ...selections].join(' · ');
     setValidationMessage('');
     if (compact) setQuery('');
-    const succeeded = await onSubmit({ requestMessage, displayMessage });
+    const selectedFilters = compact ? {} : buildSelectedFilters({ category, maxPrice, size });
+    const succeeded = await onSubmit({ requestMessage, displayMessage, selectedFilters });
     if (!succeeded && compact) setQuery(submittedQuery);
   }
 

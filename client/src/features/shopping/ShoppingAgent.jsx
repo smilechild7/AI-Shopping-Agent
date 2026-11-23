@@ -180,7 +180,8 @@ export default function ShoppingAgent() {
    * 화면용 사용자 문장을 이력에 추가하고 서버용 문장과 이전 응답 ID를 API로 보낸다.
    * 성공 응답이나 복구용 재질문을 반영하면 true, 요청 실패면 false를 반환하고 현재 요청 참조를 정리한다.
    */
-  async function submit({ requestMessage, displayMessage }) {
+  async function submit({ requestMessage, displayMessage, selectedFilters }) {
+    activeRequest.current?.abort();
     const controller = new AbortController();
     activeRequest.current = controller;
     dispatch({ type: 'SEND_MESSAGE', payload: { displayMessage } });
@@ -188,9 +189,11 @@ export default function ShoppingAgent() {
     try {
       const result = await postChat({
         message: requestMessage,
+        selectedFilters,
         previousResponseId: state.previousResponseId,
         signal: controller.signal,
       });
+      if (controller.signal.aborted || activeRequest.current !== controller) return false;
       const action = responseAction(result.type);
       if (!action) {
         throw new ChatApiError('Unexpected Agent response', { code: 'invalid_response' });
@@ -199,6 +202,7 @@ export default function ShoppingAgent() {
       dispatch({ type: action, payload: result });
       return true;
     } catch (error) {
+      if (controller.signal.aborted || activeRequest.current !== controller) return false;
       if (isRecoverableChatError(error)) {
         dispatch({
           type: 'RECEIVE_RECOVERY_CLARIFICATION',

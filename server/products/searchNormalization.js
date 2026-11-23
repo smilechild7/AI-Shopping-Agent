@@ -44,6 +44,22 @@ export function normalizeText(value) {
     .replace(/[^\p{L}\p{N}~]/gu, '');
 }
 
+/** 조건 자체의 동일성을 비교하므로 부분 문자열이나 상품 옵션의 범위 겹침을 사용하지 않는다. */
+export function canonicalColor(value) {
+  const normalized = normalizeText(value);
+  return COLOR_ALIASES.get(normalized) ?? normalized;
+}
+
+export function canonicalSize(value) {
+  const text = String(value ?? '').normalize('NFKC').trim();
+  const range = text.match(/^(\d+)\s*[~〜-]\s*(\d+)$/u);
+  if (range) {
+    return [Number(range[1]), Number(range[2])].sort((a, b) => a - b).join('~');
+  }
+  const normalized = normalizeText(text);
+  return SIZE_LABEL_ALIASES[normalized] ?? normalized;
+}
+
 function colorTokens(value) {
   const normalized = normalizeText(value);
   const tokens = new Set([normalized]);

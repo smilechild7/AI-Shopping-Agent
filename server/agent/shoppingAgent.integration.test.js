@@ -55,7 +55,7 @@ test('runs natural language through a mocked tool call, real SQLite search, and 
                     name: 'search_products',
                     call_id: 'call_search',
                     arguments: JSON.stringify({
-                      query: '10만원 이하 출근용 검정 바지',
+                      query: '10만원 이하 출근용 검정만 바지',
                       required: {
                         category: 'pants',
                         minPrice: null,
@@ -120,7 +120,7 @@ test('runs natural language through a mocked tool call, real SQLite search, and 
       });
 
       const result = await agent.chat({
-        message: '10만원 이하 출근용 검정 바지 찾아줘',
+        message: '10만원 이하 출근용 검정만 바지 찾아줘',
       });
 
       assert.equal(call, 2);

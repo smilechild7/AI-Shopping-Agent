@@ -30,3 +30,16 @@ test('rejects invalid message, response ID, and unknown fields', () => {
     /unsupported/u,
   );
 });
+
+test('validates selected filters without accepting model-authored constraints', () => {
+  assert.deepEqual(validateChatRequest({
+    message: '편한 옷', selectedFilters: { category: 'pants', maxPrice: 50_000, size: ' M ' },
+  }, options), {
+    message: '편한 옷', previousResponseId: null,
+    selectedFilters: { category: 'pants', maxPrice: 50_000, size: 'M' },
+  });
+  for (const selectedFilters of [null, [], { maxPrice: '50000' }, { maxPrice: -1 },
+    { category: 'unknown' }, { size: 'anything' }, { required: {} }, { colors: ['black'] }]) {
+    assert.throws(() => validateChatRequest({ message: '바지', selectedFilters }, options), /selectedFilters/u);
+  }
+});

@@ -8,6 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { createShoppingAgent } from './agent/shoppingAgent.js';
+import { createConstraintStore } from './agent/constraintStore.js';
 import { AI_CONFIG } from './config/ai.js';
 import { openDatabase } from './db/connection.js';
 import { createProductRepository } from './products/productRepository.js';
@@ -26,6 +27,7 @@ export function createRuntimeServices({
   apiKey = process.env.OPENAI_API_KEY,
   databasePath = path.join(repositoryRoot, 'data/products.db'),
   logger = console,
+  client,
 } = {}) {
   const database = openDatabase(databasePath, {
     readonly: true,
@@ -33,7 +35,7 @@ export function createRuntimeServices({
   });
   const repository = createProductRepository(database);
 
-  if (!apiKey) {
+  if (!apiKey && !client) {
     logger.warn(JSON.stringify({ event: 'agent.unavailable', reason: 'missing_api_key' }));
     return {
       chat: null,
@@ -44,14 +46,15 @@ export function createRuntimeServices({
     };
   }
 
-  const client = new OpenAI({
+  const openAIClient = client ?? new OpenAI({
     apiKey,
     maxRetries: AI_CONFIG.agent.maxRetries,
     timeout: AI_CONFIG.agent.timeoutMs,
   });
   const agent = createShoppingAgent({
-    client,
+    client: openAIClient,
     repository,
+    constraintStore: createConstraintStore(),
     /**
      * Agent가 요청한 검색 인자에 현재 상품 저장소와 로거를 연결해 실제 검색을 실행한다.
      */
